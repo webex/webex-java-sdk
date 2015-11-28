@@ -1,5 +1,7 @@
 package com.ciscospark;
 
+import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
@@ -257,7 +259,13 @@ class Client {
                         if (array != null) {
                             array.add(parser.getString());
                         } else if (field != null) {
-                            field.set(result, parser.getString());
+                            if (field.getType().isAssignableFrom(String.class)) {
+                                field.set(result, parser.getString());
+                            } else if (field.getType().isAssignableFrom(Date.class)) {
+                                field.set(result, new ISO8601DateFormat().parse(parser.getString()));
+                            } else if (field.getType().isAssignableFrom(URI.class)) {
+                                field.set(result, URI.create(parser.getString()));
+                            }
                             field = null;
                         }
                         break;
@@ -336,6 +344,10 @@ class Client {
                     jsonGenerator.write(field.getName(), (Integer) value);
                 } else if (type == BigDecimal.class) {
                     jsonGenerator.write(field.getName(), (BigDecimal) value);
+                } else if (type == Date.class) {
+                    jsonGenerator.write(field.getName(), new ISO8601DateFormat().format((Date) value));
+                } else if (type == URI.class) {
+                    jsonGenerator.write(field.getName(), value.toString());
                 } else if (type == Boolean.class) {
                     jsonGenerator.write(field.getName(), (Boolean) value);
                 } else if (type == String[].class) {
