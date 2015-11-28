@@ -1,20 +1,22 @@
 package com.ciscospark;
 
+import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.json.stream.JsonGenerator;
 import javax.json.stream.JsonParser;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
 import java.util.*;
+import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,74 +24,128 @@ import java.util.regex.Pattern;
  * Created on 11/24/15.
  */
 class Client {
+    private static final String TRACKING_ID = "TrackingID";
+
     final URI baseUri;
 
     String accessToken;
     final String refreshToken;
     final String clientId;
     final String clientSecret;
+    final Logger logger;
 
-    Client(URI baseUri, String accessToken, String refreshToken, String clientId, String clientSecret) {
+    Client(URI baseUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger) {
         this.baseUri = baseUri;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.logger = logger;
     }
 
     <T> T post(Class<T> clazz, String path, T body) {
-        try {
-            HttpURLConnection connection = getConnection(path, null);
-            connection.setDoOutput(true);
-            connection.setRequestMethod("POST");
-
-            OutputStream ostream = new ForkOutputStream(System.err, connection.getOutputStream());
-            System.err.println("REQUEST: ");
-            writeJson(body, ostream);
-            ostream.flush();
-            System.err.println();
-
-            int responseCode = connection.getResponseCode();
-            checkForErrorResponse(connection, responseCode);
-            System.err.println("RESPONSE: ");
-            InputStream inputStream = new TeeInputStream(connection.getInputStream(), System.err);
-            try {
-                return readJson(clazz, inputStream);
-            } finally {
-                System.err.println();
-            }
-        } catch (IOException ex) {
-            throw new SparkException("io error", ex);
-        }
+        return readJson(clazz, request("POST", path, null, body));
     }
 
 
     <T> T put(Class<T> clazz, String path, T body) {
+        return readJson(clazz, request("PUT", path, null, body));
+    }
+
+
+    <T> T get(Class<T> clazz, String path, List<String[]> params) {
+        return readJson(clazz, request("GET", path, params, null));
+    }
+
+    <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
+        return new PagingIterator<>(clazz, getUrl(path, params));
+    }
+
+    void delete(String path) {
         try {
-            HttpURLConnection connection = getConnection(path, null);
-            connection.setDoOutput(true);
-            connection.setRequestMethod("PUT");
-
-            OutputStream ostream = new ForkOutputStream(System.err, connection.getOutputStream());
-            System.err.println("REQUEST: ");
-            writeJson(body, ostream);
-            ostream.flush();
-            System.err.println();
-
+            HttpURLConnection connection = getConnection(getUrl(path, null));
+            connection.setRequestMethod("DELETE");
             int responseCode = connection.getResponseCode();
             checkForErrorResponse(connection, responseCode);
-            InputStream inputStream = new TeeInputStream(connection.getInputStream(), System.err);
-            System.err.println("RESPONSE: ");
-            T result = readJson(clazz, inputStream);
-            System.err.println();
-            return result;
+        } catch (IOException ex) {
+            throw new SparkException(ex);
+        }
+    }
+
+    private <T> InputStream request(String method, String path, List<String[]> params, T body) {
+        try {
+            URL url = getUrl(path, params);
+            return request(url, method, body).inputStream;
         } catch (IOException ex) {
             throw new SparkException("io error", ex);
         }
     }
 
-    private static void checkForErrorResponse(HttpURLConnection connection, int responseCode) {
-        if (responseCode < 200 || responseCode > 300) {
+    private static class Response {
+        HttpURLConnection connection;
+        InputStream inputStream;
+
+        public Response(HttpURLConnection connection, InputStream inputStream) {
+            this.connection = connection;
+            this.inputStream = inputStream;
+        }
+    }
+
+    private <T> Response request(URL url, String method, T body) throws IOException {
+        HttpURLConnection connection = getConnection(url);
+        String trackingId = connection.getRequestProperty(TRACKING_ID);
+        connection.setRequestMethod(method);
+        if (logger != null && logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE, "Request {0}: {1} {2}",
+                    new Object[] { trackingId, method, connection.getURL().toString() });
+        }
+        if (body != null) {
+            connection.setDoOutput(true);
+            if (logger != null && logger.isLoggable(Level.FINEST)) {
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                writeJson(body, byteArrayOutputStream);
+                logger.log(Level.FINEST, "Request Body {0}: {1}",
+                        new Object[] { trackingId, byteArrayOutputStream.toString() });
+                byteArrayOutputStream.writeTo(connection.getOutputStream());
+            } else {
+                writeJson(body, connection.getOutputStream());
+            }
+        }
+
+        int responseCode = connection.getResponseCode();
+        if (logger != null && logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE, "Response {0}: {1} {2}",
+                    new Object[] { trackingId, responseCode, connection.getResponseMessage() });
+        }
+        checkForErrorResponse(connection, responseCode);
+
+        if (logger != null && logger.isLoggable(Level.FINEST)) {
+            InputStream inputStream = logResponse(trackingId, connection.getInputStream());
+            return new Response(connection, inputStream);
+        } else {
+            InputStream inputStream = connection.getInputStream();
+            return new Response(connection, inputStream);
+
+        }
+    }
+
+    private InputStream logResponse(String trackingId, InputStream inputStream) throws IOException {
+        if (inputStream == null) {
+            return null;
+        }
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        byte buf[] = new byte[16 * 1024];
+        int count;
+        while ((count = inputStream.read(buf)) != -1) {
+            byteArrayOutputStream.write(buf, 0, count);
+        }
+        logger.log(Level.FINEST, "Response Body {0}: {1}",
+                new Object[]{trackingId, byteArrayOutputStream.toString()});
+        return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+    }
+
+    private void checkForErrorResponse(HttpURLConnection connection, int responseCode) throws IOException {
+        if (responseCode < 200 || responseCode >= 400) {
             StringBuilder errorMessageBuilder = new StringBuilder("bad response code ");
             errorMessageBuilder.append(responseCode);
             try {
@@ -102,29 +158,38 @@ class Client {
                 // ignore
             }
 
-            ErrorMessage errorMessage = parseErrorMessage(connection);
-            if (errorMessage != null) {
-                errorMessageBuilder.append(": ");
-                errorMessageBuilder.append(errorMessage.message);
+
+            Function<InputStream, Object> processor = stream -> {
+                ErrorMessage errorMessage = parseErrorMessage(stream);
+                if (errorMessage != null) {
+                    errorMessageBuilder.append(": ");
+                    errorMessageBuilder.append(errorMessage.message);
+                }
+                return null;
+            };
+
+            if (logger != null && logger.isLoggable(Level.FINEST)) {
+                InputStream inputStream = logResponse(connection.getRequestProperty(TRACKING_ID), connection.getErrorStream());
+                processor.apply(inputStream);
+            } else {
+                processor.apply(connection.getErrorStream());
             }
+
             throw new SparkException(errorMessageBuilder.toString());
         }
     }
 
     static class ErrorMessage {
         String message;
-        String[] errors;
         String trackingId;
     }
 
-    private static ErrorMessage parseErrorMessage(HttpURLConnection connection) {
+    private static ErrorMessage parseErrorMessage(InputStream errorStream) {
         try {
-            InputStream errorStream = connection.getErrorStream();
             if (errorStream == null) {
                 return null;
             }
-            InputStream inputStream = new TeeInputStream(errorStream, System.err);
-            JsonReader reader = Json.createReader(inputStream);
+            JsonReader reader = Json.createReader(errorStream);
             JsonObject jsonObject = reader.readObject();
             ErrorMessage result = new ErrorMessage();
             result.message = jsonObject.getString("message");
@@ -135,50 +200,6 @@ class Client {
         }
     }
 
-    <T> T get(Class<T> clazz, String path, List<String[]> params) {
-        try {
-            HttpURLConnection connection = getConnection(path, null);
-            connection.setRequestMethod("GET");
-
-            int responseCode = connection.getResponseCode();
-            checkForErrorResponse(connection, responseCode);
-            InputStream inputStream = new TeeInputStream(connection.getInputStream(), System.err);
-            System.err.println("RESPONSE: ");
-            T result = readJson(clazz, inputStream);
-            System.err.println();
-            return result;
-        } catch (IOException ex) {
-            throw new SparkException("io error", ex);
-        }
-    }
-
-    <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
-        try {
-            HttpURLConnection connection = getConnection(path, params);
-            connection.setRequestMethod("GET");
-
-            return new PagingIterator<>(clazz, connection);
-        } catch (IOException ex) {
-            throw new SparkException("io error", ex);
-        }
-    }
-
-    void delete(String path) {
-        try {
-            HttpURLConnection connection = getConnection(path, null);
-            connection.setRequestMethod("DELETE");
-            int responseCode = connection.getResponseCode();
-            checkForErrorResponse(connection, responseCode);
-        } catch (IOException ex) {
-            throw new SparkException(ex);
-        }
-    }
-
-    private HttpURLConnection getConnection(String path, List<String[]> params) throws IOException {
-        URL url = getUrl(path, params);
-        return getConnection(url);
-    }
-
     private HttpURLConnection getConnection(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestProperty("Content-type", "application/json");
@@ -187,7 +208,7 @@ class Client {
             authorization = "Bearer " + accessToken;
         }
         connection.setRequestProperty("Authorization", authorization);
-        connection.setRequestProperty("TrackingID", UUID.randomUUID().toString());
+        connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
         return connection;
     }
 
@@ -238,7 +259,13 @@ class Client {
                         if (array != null) {
                             array.add(parser.getString());
                         } else if (field != null) {
-                            field.set(result, parser.getString());
+                            if (field.getType().isAssignableFrom(String.class)) {
+                                field.set(result, parser.getString());
+                            } else if (field.getType().isAssignableFrom(Date.class)) {
+                                field.set(result, new ISO8601DateFormat().parse(parser.getString()));
+                            } else if (field.getType().isAssignableFrom(URI.class)) {
+                                field.set(result, URI.create(parser.getString()));
+                            }
                             field = null;
                         }
                         break;
@@ -246,11 +273,11 @@ class Client {
                         field = null;
                         break;
                     case START_ARRAY:
-                        array = new ArrayList<String>();
+                        array = new ArrayList<>();
                         break;
                     case END_ARRAY:
                         if (field != null) {
-                            field.set(result, array.toArray(new String[] {}));
+                            field.set(result, array.toArray(new String[array.size()]));
                             field = null;
                         }
                         array = null;
@@ -273,13 +300,13 @@ class Client {
         StringBuilder urlStringBuilder = new StringBuilder(baseUri.toString() + path);
         if (params != null) {
             urlStringBuilder.append("?");
-            params.forEach(param -> {
+            params.forEach(param ->
                 urlStringBuilder
                         .append(encode(param[0]))
                         .append("=")
                         .append(encode(param[1]))
-                        .append("&");
-            });
+                        .append("&")
+            );
         }
         URL url;
         try {
@@ -317,6 +344,10 @@ class Client {
                     jsonGenerator.write(field.getName(), (Integer) value);
                 } else if (type == BigDecimal.class) {
                     jsonGenerator.write(field.getName(), (BigDecimal) value);
+                } else if (type == Date.class) {
+                    jsonGenerator.write(field.getName(), new ISO8601DateFormat().format((Date) value));
+                } else if (type == URI.class) {
+                    jsonGenerator.write(field.getName(), value.toString());
                 } else if (type == Boolean.class) {
                     jsonGenerator.write(field.getName(), (Boolean) value);
                 } else if (type == String[].class) {
@@ -335,73 +366,16 @@ class Client {
         jsonGenerator.close();
     }
 
-
-    private static class TeeInputStream extends InputStream {
-        final InputStream istream;
-        final OutputStream ostream;
-
-        public TeeInputStream(InputStream istream, OutputStream ostream) {
-            this.istream = istream;
-            this.ostream = ostream;
-        }
-
-        @Override
-        public int read(byte[] b, int off, int len) throws IOException {
-            int result = istream.read(b, off, len);
-            if (result != -1) {
-                ostream.write(b, off, result);
-            }
-            return result;
-        }
-
-        @Override
-        public int read() throws IOException {
-            int result = istream.read();
-            if (result != -1) {
-                ostream.write(result);
-            }
-            return result;
-        }
-    }
-
-    private static class ForkOutputStream extends OutputStream {
-        final OutputStream ostreams[];
-
-        private ForkOutputStream(OutputStream... ostreams) {
-            this.ostreams = ostreams;
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            for (OutputStream ostream : ostreams) {
-                ostream.write(b, off, len);
-            }
-        }
-
-        @Override
-        public void flush() throws IOException {
-            for (OutputStream ostream : ostreams) {
-                ostream.flush();
-            }
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-            for (OutputStream ostream : ostreams) {
-                ostream.write(b);
-            }
-        }
-    }
-
     private class PagingIterator<T> implements Iterator<T> {
         private final Class<T> clazz;
+        private URL url;
         private HttpURLConnection connection;
         private JsonParser parser;
         T current;
 
-        public PagingIterator(Class<T> clazz, HttpURLConnection connection) {
+        public PagingIterator(Class<T> clazz, URL url) {
             this.clazz = clazz;
-            this.connection = connection;
+            this.url = url;
         }
 
         @Override
@@ -409,11 +383,9 @@ class Client {
             try {
                 if (current == null) {
                     if (parser == null) {
-                        int responseCode = connection.getResponseCode();
-                        checkForErrorResponse(connection, responseCode);
-                        HttpURLConnection next = getLink(connection, "next");
-//                        InputStream inputStream = new TeeInputStream(connection.getInputStream(), System.err);
-                        InputStream inputStream = connection.getInputStream();
+                        Response response = request(url, "GET", null);
+                        InputStream inputStream = response.inputStream;
+                        connection = response.connection;
                         parser = Json.createParser(inputStream);
 
                         JsonParser.Event event;
@@ -432,12 +404,12 @@ class Client {
 
                     JsonParser.Event event = parser.next();
                     if (event != JsonParser.Event.START_OBJECT) {
-                        System.err.println("");
                         HttpURLConnection next = getLink(connection, "next");
-                        if (next == null || (next.getURL().equals(connection.getURL()))) {
+                        if (next == null || (next.getURL().equals(url))) {
                             return false;
                         } else {
                             connection = next;
+                            url = connection.getURL();
                             parser = null;
                             return hasNext();
                         }

@@ -33,4 +33,9 @@ class SparkImpl extends Spark {
     public RequestBuilder<Person> people(){
         return new RequestBuilderImpl(Person.class, client, "/people");
     }
+
+    @Override
+    public RequestBuilder<Webhook> webhooks() {
+        return new RequestBuilderImpl<>(Webhook.class, client, "/webhooks");
+    }
 }
