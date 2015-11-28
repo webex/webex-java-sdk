@@ -5,16 +5,16 @@ import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.json.stream.JsonGenerator;
 import javax.json.stream.JsonParser;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
 import java.util.*;
+import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,134 +22,37 @@ import java.util.regex.Pattern;
  * Created on 11/24/15.
  */
 class Client {
+    private static final String TRACKING_ID = "TrackingID";
+
     final URI baseUri;
 
     String accessToken;
     final String refreshToken;
     final String clientId;
     final String clientSecret;
+    final Logger logger;
 
-    Client(URI baseUri, String accessToken, String refreshToken, String clientId, String clientSecret) {
+    Client(URI baseUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger) {
         this.baseUri = baseUri;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.logger = logger;
     }
 
     <T> T post(Class<T> clazz, String path, T body) {
-        try {
-            HttpURLConnection connection = getConnection(path, null);
-            connection.setDoOutput(true);
-            connection.setRequestMethod("POST");
-
-            OutputStream ostream = new ForkOutputStream(System.err, connection.getOutputStream());
-            System.err.println("REQUEST: ");
-            writeJson(body, ostream);
-            ostream.flush();
-            System.err.println();
-
-            int responseCode = connection.getResponseCode();
-            checkForErrorResponse(connection, responseCode);
-            System.err.println("RESPONSE: ");
-            InputStream inputStream = new TeeInputStream(connection.getInputStream(), System.err);
-            try {
-                return readJson(clazz, inputStream);
-            } finally {
-                System.err.println();
-            }
-        } catch (IOException ex) {
-            throw new SparkException("io error", ex);
-        }
+        return request(clazz, "POST", path, null, body);
     }
 
 
     <T> T put(Class<T> clazz, String path, T body) {
-        try {
-            HttpURLConnection connection = getConnection(path, null);
-            connection.setDoOutput(true);
-            connection.setRequestMethod("PUT");
-
-            OutputStream ostream = new ForkOutputStream(System.err, connection.getOutputStream());
-            System.err.println("REQUEST: ");
-            writeJson(body, ostream);
-            ostream.flush();
-            System.err.println();
-
-            int responseCode = connection.getResponseCode();
-            checkForErrorResponse(connection, responseCode);
-            InputStream inputStream = new TeeInputStream(connection.getInputStream(), System.err);
-            System.err.println("RESPONSE: ");
-            T result = readJson(clazz, inputStream);
-            System.err.println();
-            return result;
-        } catch (IOException ex) {
-            throw new SparkException("io error", ex);
-        }
+        return request(clazz, "PUT", path, null, body);
     }
 
-    private static void checkForErrorResponse(HttpURLConnection connection, int responseCode) {
-        if (responseCode < 200 || responseCode > 300) {
-            StringBuilder errorMessageBuilder = new StringBuilder("bad response code ");
-            errorMessageBuilder.append(responseCode);
-            try {
-                String responseMessage = connection.getResponseMessage();
-                if (responseMessage != null) {
-                    errorMessageBuilder.append(" ");
-                    errorMessageBuilder.append(responseMessage);
-                }
-            } catch (IOException ex) {
-                // ignore
-            }
-
-            ErrorMessage errorMessage = parseErrorMessage(connection);
-            if (errorMessage != null) {
-                errorMessageBuilder.append(": ");
-                errorMessageBuilder.append(errorMessage.message);
-            }
-            throw new SparkException(errorMessageBuilder.toString());
-        }
-    }
-
-    static class ErrorMessage {
-        String message;
-        String[] errors;
-        String trackingId;
-    }
-
-    private static ErrorMessage parseErrorMessage(HttpURLConnection connection) {
-        try {
-            InputStream errorStream = connection.getErrorStream();
-            if (errorStream == null) {
-                return null;
-            }
-            InputStream inputStream = new TeeInputStream(errorStream, System.err);
-            JsonReader reader = Json.createReader(inputStream);
-            JsonObject jsonObject = reader.readObject();
-            ErrorMessage result = new ErrorMessage();
-            result.message = jsonObject.getString("message");
-            result.trackingId = jsonObject.getString("trackingId");
-            return result;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
 
     <T> T get(Class<T> clazz, String path, List<String[]> params) {
-        try {
-            HttpURLConnection connection = getConnection(path, null);
-            connection.setRequestMethod("GET");
-
-            int responseCode = connection.getResponseCode();
-            checkForErrorResponse(connection, responseCode);
-            InputStream inputStream = new TeeInputStream(connection.getInputStream(), System.err);
-            System.err.println("RESPONSE: ");
-            T result = readJson(clazz, inputStream);
-            System.err.println();
-            return result;
-        } catch (IOException ex) {
-            throw new SparkException("io error", ex);
-        }
+        return request(clazz, "GET", path, params, null);
     }
 
     <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
@@ -174,6 +77,114 @@ class Client {
         }
     }
 
+    private <T> T request(final Class<T> clazz, String method, String path, List<String[]> params, T body) {
+        try {
+            HttpURLConnection connection = getConnection(path, params);
+            String trackingId = connection.getRequestProperty(TRACKING_ID);
+            connection.setRequestMethod(method);
+            if (logger != null && logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, "Request {0}: {1} {2}",
+                        new Object[] { trackingId, method, connection.getURL().toString() });
+            }
+            if (body != null) {
+                connection.setDoOutput(true);
+                if (logger != null && logger.isLoggable(Level.FINEST)) {
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    writeJson(body, byteArrayOutputStream);
+                    logger.log(Level.FINEST, "Request Body {0}: {1}",
+                            new Object[] { trackingId, new String(byteArrayOutputStream.toString()) });
+                    byteArrayOutputStream.writeTo(connection.getOutputStream());
+                } else {
+                    writeJson(body, connection.getOutputStream());
+                }
+            }
+
+            int responseCode = connection.getResponseCode();
+            if (logger != null && logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, "Response {0}: {1} {2}",
+                        new Object[] { trackingId, responseCode, connection.getResponseMessage() });
+            }
+            checkForErrorResponse(connection, responseCode);
+
+            if (logger != null && logger.isLoggable(Level.FINEST)) {
+                return logAndProcessResponse(trackingId, connection.getInputStream(), stream -> readJson(clazz, stream));
+            } else {
+                return readJson(clazz, connection.getInputStream());
+            }
+        } catch (IOException ex) {
+            throw new SparkException("io error", ex);
+        }
+    }
+
+    private <T> T logAndProcessResponse(String trackingId, InputStream inputStream, Function<InputStream, T> processor) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        byte buf[] = new byte[1024];
+        int count = -1;
+        while ((count = inputStream.read(buf)) != -1) {
+            byteArrayOutputStream.write(buf, 0, count);
+        }
+        logger.log(Level.FINEST, "Response Body {0}: {1}",
+                new Object[]{trackingId, new String(byteArrayOutputStream.toString())});
+        return processor.apply(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
+    }
+
+
+    private void checkForErrorResponse(HttpURLConnection connection, int responseCode) throws IOException {
+        if (responseCode < 200 || responseCode > 300) {
+            StringBuilder errorMessageBuilder = new StringBuilder("bad response code ");
+            errorMessageBuilder.append(responseCode);
+            try {
+                String responseMessage = connection.getResponseMessage();
+                if (responseMessage != null) {
+                    errorMessageBuilder.append(" ");
+                    errorMessageBuilder.append(responseMessage);
+                }
+            } catch (IOException ex) {
+                // ignore
+            }
+
+
+            Function<InputStream, Object> processor = stream -> {
+                ErrorMessage errorMessage = parseErrorMessage(stream);
+                if (errorMessage != null) {
+                    errorMessageBuilder.append(": ");
+                    errorMessageBuilder.append(errorMessage.message);
+                }
+                return null;
+            };
+
+            if (logger != null && logger.isLoggable(Level.FINEST)) {
+                logAndProcessResponse(connection.getRequestProperty(TRACKING_ID), connection.getErrorStream(), processor);
+            } else {
+                processor.apply(connection.getErrorStream());
+            }
+
+            throw new SparkException(errorMessageBuilder.toString());
+        }
+    }
+
+    static class ErrorMessage {
+        String message;
+        String[] errors;
+        String trackingId;
+    }
+
+    private static ErrorMessage parseErrorMessage(InputStream errorStream) {
+        try {
+            if (errorStream == null) {
+                return null;
+            }
+            JsonReader reader = Json.createReader(errorStream);
+            JsonObject jsonObject = reader.readObject();
+            ErrorMessage result = new ErrorMessage();
+            result.message = jsonObject.getString("message");
+            result.trackingId = jsonObject.getString("trackingId");
+            return result;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     private HttpURLConnection getConnection(String path, List<String[]> params) throws IOException {
         URL url = getUrl(path, params);
         return getConnection(url);
@@ -187,7 +198,7 @@ class Client {
             authorization = "Bearer " + accessToken;
         }
         connection.setRequestProperty("Authorization", authorization);
-        connection.setRequestProperty("TrackingID", UUID.randomUUID().toString());
+        connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
         return connection;
     }
 
@@ -364,34 +375,6 @@ class Client {
         }
     }
 
-    private static class ForkOutputStream extends OutputStream {
-        final OutputStream ostreams[];
-
-        private ForkOutputStream(OutputStream... ostreams) {
-            this.ostreams = ostreams;
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            for (OutputStream ostream : ostreams) {
-                ostream.write(b, off, len);
-            }
-        }
-
-        @Override
-        public void flush() throws IOException {
-            for (OutputStream ostream : ostreams) {
-                ostream.flush();
-            }
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-            for (OutputStream ostream : ostreams) {
-                ostream.write(b);
-            }
-        }
-    }
 
     private class PagingIterator<T> implements Iterator<T> {
         private final Class<T> clazz;

@@ -1,6 +1,7 @@
 package com.ciscospark;
 
 import java.net.URI;
+import java.util.logging.Logger;
 
 /**
  * Created on 11/24/15.
@@ -20,15 +21,17 @@ public abstract class Spark {
         Builder refreshToken(String refreshToken);
         Builder clientId(String clientId);
         Builder clientSecret(String clientSecret);
+        Builder logger(Logger logger);
         Spark build();
     }
 
     public static Builder builder() {
         return new Builder() {
-            public String accessToken;
-            public String refreshToken;
-            public String clientId;
-            public String clientSecret;
+            private String accessToken;
+            private String refreshToken;
+            private String clientId;
+            private String clientSecret;
+            private Logger logger;
             private URI baseUrl = URI.create("https://api.ciscospark.com/v1");
 
             @Override
@@ -62,8 +65,14 @@ public abstract class Spark {
             }
 
             @Override
+            public Builder logger(Logger logger) {
+                this.logger = logger;
+                return this;
+            }
+
+            @Override
             public Spark build() {
-                return new SparkImpl(new Client(baseUrl, accessToken, refreshToken, clientId, clientSecret));
+                return new SparkImpl(new Client(baseUrl, accessToken, refreshToken, clientId, clientSecret, logger));
             }
         };
     }
