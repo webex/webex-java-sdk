@@ -1,5 +1,6 @@
 package com.ciscospark;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.List;
  * Created on 11/24/15.
  */
 class RequestBuilderImpl<T> implements RequestBuilder<T> {
+    private URL url;
     final StringBuilder pathBuilder;
     final List<String[]> params;
     final Client client;
@@ -43,27 +45,62 @@ class RequestBuilderImpl<T> implements RequestBuilder<T> {
     }
 
     @Override
+    public RequestBuilder<T> url(URL url) {
+        this.url = url;
+        return this;
+    }
+
+    @Override
     public T post(T body) {
-        return client.post(clazz, pathBuilder.toString(), body);
+        if (url != null) {
+            return client.post(clazz, url, body);
+        } else {
+            return client.post(clazz, pathBuilder.toString(), body);
+        }
     }
 
     @Override
     public T put(T body) {
-        return client.put(clazz, pathBuilder.toString(), body);
+        if (url != null) {
+            return client.put(clazz, url, body);
+        } else {
+            return client.put(clazz, pathBuilder.toString(), body);
+        }
     }
 
     @Override
     public T get() {
-        return client.get(clazz, pathBuilder.toString(), params);
+        if (url != null) {
+            return client.get(clazz, url);
+        } else {
+            return client.get(clazz, pathBuilder.toString(), params);
+        }
     }
 
     @Override
-    public Iterator<T> list() {
-        return client.list(clazz, pathBuilder.toString(), params);
+    public Iterator<T> iterate() {
+        if (url != null) {
+            return client.list(clazz, url);
+        } else {
+            return client.list(clazz, pathBuilder.toString(), params);
+        }
+    }
+
+    @Override
+    public LinkedResponse<List<T>> paginate() {
+        if (url != null) {
+            return client.paginate(clazz, url);
+        } else {
+            return client.paginate(clazz, pathBuilder.toString(), params);
+        }
     }
 
     @Override
     public void delete() {
-        client.delete(pathBuilder.toString());
+        if (url != null) {
+            client.delete(url);
+        } else {
+            client.delete(pathBuilder.toString());
+        }
     }
 }
