@@ -47,41 +47,23 @@ class Client {
         return readJson(clazz, request("POST", path, null, body));
     }
 
-    <T> T post(Class<T> clazz, URL url, T body) {
-        return readJson(clazz, request(url, "POST", body).inputStream);
-    }
 
     <T> T put(Class<T> clazz, String path, T body) {
         return readJson(clazz, request("PUT", path, null, body));
     }
 
-    <T> T put(Class<T> clazz, URL url, T body) {
-        return readJson(clazz, request(url, "PUT", body).inputStream);
-    }
 
     <T> T get(Class<T> clazz, String path, List<String[]> params) {
         return readJson(clazz, request("GET", path, params, null));
-    }
-
-    <T> T get(Class<T> clazz, URL url) {
-        return readJson(clazz, request(url, "GET", null).inputStream);
     }
 
     <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
         return new PagingIterator<>(clazz, getUrl(path, params));
     }
 
-    <T> Iterator<T> list(Class<T> clazz, URL url) {
-        return new PagingIterator<>(clazz, url);
-    }
-
     void delete(String path) {
-        delete(getUrl(path, null));
-    }
-
-    void delete(URL url) {
         try {
-            HttpURLConnection connection = getConnection(url);
+            HttpURLConnection connection = getConnection(getUrl(path, null));
             connection.setRequestMethod("DELETE");
             int responseCode = connection.getResponseCode();
             checkForErrorResponse(connection, responseCode);
@@ -90,39 +72,16 @@ class Client {
         }
     }
 
-
-    public <T> LinkedResponse<List<T>> paginate(Class<T> clazz, URL url) {
-        Function<InputStream, List<T>> function = istream -> {
-            JsonParser parser = Json.createParser(istream);
-            scrollToItemsArray(parser);
-
-            List<T> result = new ArrayList<>();
-            for (JsonParser.Event event = parser.next();
-                 event == JsonParser.Event.START_OBJECT;
-                 event = parser.next()) {
-                result.add(readObject(clazz,parser));
-            }
-            return result;
-        };
-
+    private <T> InputStream request(String method, String path, List<String[]> params, T body) {
         try {
-            return new LinkedResponse<>(this, url, function);
-        } catch (IOException e) {
-            throw new SparkException("io error", e);
+            URL url = getUrl(path, params);
+            return request(url, method, body).inputStream;
+        } catch (IOException ex) {
+            throw new SparkException("io error", ex);
         }
     }
 
-    public <T> LinkedResponse<List<T>> paginate(Class<T> clazz, String paths, List<String[]> params) {
-        URL url = getUrl(paths, params);
-        return paginate(clazz, url);
-    }
-
-
-    <T> InputStream request(String method, String path, List<String[]> params, T body) {
-        URL url = getUrl(path, params);
-        return request(url, method, body).inputStream;
-    }
-    static class Response {
+    private static class Response {
         HttpURLConnection connection;
         InputStream inputStream;
 
@@ -132,45 +91,41 @@ class Client {
         }
     }
 
-    <T> Response request(URL url, String method, T body) {
-        try {
-            HttpURLConnection connection = getConnection(url);
-            String trackingId = connection.getRequestProperty(TRACKING_ID);
-            connection.setRequestMethod(method);
-            if (logger != null && logger.isLoggable(Level.FINE)) {
-                logger.log(Level.FINE, "Request {0}: {1} {2}",
-                        new Object[] { trackingId, method, connection.getURL().toString() });
-            }
-            if (body != null) {
-                connection.setDoOutput(true);
-                if (logger != null && logger.isLoggable(Level.FINEST)) {
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                    writeJson(body, byteArrayOutputStream);
-                    logger.log(Level.FINEST, "Request Body {0}: {1}",
-                            new Object[] { trackingId, byteArrayOutputStream.toString() });
-                    byteArrayOutputStream.writeTo(connection.getOutputStream());
-                } else {
-                    writeJson(body, connection.getOutputStream());
-                }
-            }
-
-            int responseCode = connection.getResponseCode();
-            if (logger != null && logger.isLoggable(Level.FINE)) {
-                logger.log(Level.FINE, "Response {0}: {1} {2}",
-                        new Object[] { trackingId, responseCode, connection.getResponseMessage() });
-            }
-            checkForErrorResponse(connection, responseCode);
-
+    private <T> Response request(URL url, String method, T body) throws IOException {
+        HttpURLConnection connection = getConnection(url);
+        String trackingId = connection.getRequestProperty(TRACKING_ID);
+        connection.setRequestMethod(method);
+        if (logger != null && logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE, "Request {0}: {1} {2}",
+                    new Object[] { trackingId, method, connection.getURL().toString() });
+        }
+        if (body != null) {
+            connection.setDoOutput(true);
             if (logger != null && logger.isLoggable(Level.FINEST)) {
-                InputStream inputStream = logResponse(trackingId, connection.getInputStream());
-                return new Response(connection, inputStream);
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                writeJson(body, byteArrayOutputStream);
+                logger.log(Level.FINEST, "Request Body {0}: {1}",
+                        new Object[] { trackingId, byteArrayOutputStream.toString() });
+                byteArrayOutputStream.writeTo(connection.getOutputStream());
             } else {
-                InputStream inputStream = connection.getInputStream();
-                return new Response(connection, inputStream);
-
+                writeJson(body, connection.getOutputStream());
             }
-        } catch (IOException ex) {
-            throw new SparkException("io error", ex);
+        }
+
+        int responseCode = connection.getResponseCode();
+        if (logger != null && logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE, "Response {0}: {1} {2}",
+                    new Object[] { trackingId, responseCode, connection.getResponseMessage() });
+        }
+        checkForErrorResponse(connection, responseCode);
+
+        if (logger != null && logger.isLoggable(Level.FINEST)) {
+            InputStream inputStream = logResponse(trackingId, connection.getInputStream());
+            return new Response(connection, inputStream);
+        } else {
+            InputStream inputStream = connection.getInputStream();
+            return new Response(connection, inputStream);
+
         }
     }
 
@@ -433,7 +388,18 @@ class Client {
                         connection = response.connection;
                         parser = Json.createParser(inputStream);
 
-                        scrollToItemsArray(parser);
+                        JsonParser.Event event;
+                        while (parser.hasNext()) {
+                            event = parser.next();
+                            if (event == JsonParser.Event.KEY_NAME &&  parser.getString().equals("items")) {
+                                break;
+                            }
+                        }
+
+                        event = parser.next();
+                        if (event != JsonParser.Event.START_ARRAY) {
+                            throw new SparkException("bad json");
+                        }
                     }
 
                     JsonParser.Event event = parser.next();
@@ -469,24 +435,6 @@ class Client {
             }
         }
     }
-
-
-
-    private void scrollToItemsArray(JsonParser parser) {
-        JsonParser.Event event;
-        while (parser.hasNext()) {
-            event = parser.next();
-            if (event == JsonParser.Event.KEY_NAME &&  parser.getString().equals("items")) {
-                break;
-            }
-        }
-
-        event = parser.next();
-        if (event != JsonParser.Event.START_ARRAY) {
-            throw new SparkException("bad json");
-        }
-    }
-
 
 
     private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
