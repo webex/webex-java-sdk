@@ -33,8 +33,10 @@ class RequestBuilderImpl<T> implements RequestBuilder<T> {
     }
 
     @Override
-    public RequestBuilder<T> path(String path) {
-        this.pathBuilder.append(path);
+    public RequestBuilder<T> path(Object... paths) {
+        for (Object path : paths) {
+            this.pathBuilder.append(path);
+        }
         return this;
     }
 

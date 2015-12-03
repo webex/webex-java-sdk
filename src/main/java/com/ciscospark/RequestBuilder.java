@@ -9,7 +9,7 @@ import java.util.List;
  */
 public interface RequestBuilder<T> {
     RequestBuilder<T> queryParam(String key, String value);
-    RequestBuilder<T> path(String path);
+    RequestBuilder<T> path(Object... paths);
     <NewType> RequestBuilder<NewType> path(String path, Class<NewType> clazz);
     RequestBuilder<T> url(URL url);
     T post(T body);
