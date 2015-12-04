@@ -29,12 +29,16 @@ class Client {
     final URI baseUri;
 
     String accessToken;
-    final String refreshToken;
+    String authCode;
+    final URI redirectUri;
+    String refreshToken;
     final String clientId;
     final String clientSecret;
     final Logger logger;
 
-    Client(URI baseUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger) {
+    Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger) {
+        this.authCode = authCode;
+        this.redirectUri = redirectUri;
         this.baseUri = baseUri;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
@@ -133,6 +137,64 @@ class Client {
     }
 
     <T> Response request(URL url, String method, T body) {
+        if (accessToken == null) {
+            if (!authenticate()) {
+                throw new NotAuthenticatedException();
+            }
+        }
+
+        try {
+            return doRequest(url, method, body);
+        } catch (NotAuthenticatedException ex) {
+            if (authenticate()) {
+                return doRequest(url, method, body);
+            } else {
+                throw ex;
+            }
+        }
+    }
+
+    private boolean authenticate() {
+        if (clientId != null && clientSecret != null) {
+            if (authCode != null && redirectUri != null) {
+                log(Level.FINE, "Requesting access token");
+                URL url = getUrl("/access_token",null);
+                AccessTokenRequest body = new AccessTokenRequest();
+                body.setGrant_type("authorization_code");
+                body.setClient_id(clientId);
+                body.setClient_secret(clientSecret);
+                body.setCode(authCode);
+                body.setRedirect_uri(redirectUri);
+                Response response = doRequest(url, "POST", body);
+                AccessTokenResponse responseBody = readJson(AccessTokenResponse.class, response.inputStream);
+                accessToken = responseBody.getAccess_token();
+                refreshToken = responseBody.getRefresh_token();
+                authCode = null;
+                return true;
+            } else if (refreshToken != null) {
+                log(Level.FINE, "Refreshing access token");
+                URL url = getUrl("/access_token",null);
+                AccessTokenRequest body = new AccessTokenRequest();
+                body.setClient_id(clientId);
+                body.setClient_secret(clientSecret);
+                body.setRefresh_token(refreshToken);
+                body.setGrant_type("refresh_token");
+                Response response = doRequest(url, "POST", body);
+                AccessTokenResponse responseBody = readJson(AccessTokenResponse.class, response.inputStream);
+                accessToken = responseBody.getAccess_token();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void log(Level level, String msg, Object... args) {
+        if (logger != null && logger.isLoggable(level)) {
+            logger.log(level, msg, args);
+        }
+    }
+
+    private <T> Response doRequest(URL url, String method, T body) {
         try {
             HttpURLConnection connection = getConnection(url);
             String trackingId = connection.getRequestProperty(TRACKING_ID);
@@ -189,8 +251,10 @@ class Client {
         return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
     }
 
-    private void checkForErrorResponse(HttpURLConnection connection, int responseCode) throws IOException {
-        if (responseCode < 200 || responseCode >= 400) {
+    private void checkForErrorResponse(HttpURLConnection connection, int responseCode) throws NotAuthenticatedException, IOException {
+        if (responseCode == 401) {
+            throw new NotAuthenticatedException();
+        } else if (responseCode < 200 || responseCode >= 400) {
             StringBuilder errorMessageBuilder = new StringBuilder("bad response code ");
             errorMessageBuilder.append(responseCode);
             try {
@@ -248,11 +312,13 @@ class Client {
     private HttpURLConnection getConnection(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestProperty("Content-type", "application/json");
-        String authorization = accessToken;
-        if (!authorization.startsWith("Bearer ")) {
-            authorization = "Bearer " + accessToken;
+        if (accessToken != null) {
+            String authorization = accessToken;
+            if (!authorization.startsWith("Bearer ")) {
+                authorization = "Bearer " + accessToken;
+            }
+            connection.setRequestProperty("Authorization", authorization);
         }
-        connection.setRequestProperty("Authorization", authorization);
         connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
         return connection;
     }
