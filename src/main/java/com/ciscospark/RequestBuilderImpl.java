@@ -16,7 +16,7 @@ class RequestBuilderImpl<T> implements RequestBuilder<T> {
     final Class<T> clazz;
 
     RequestBuilderImpl(Class<T> clazz, Client client, String path) {
-        this(clazz, client, new StringBuilder(path), new ArrayList<>());
+        this(clazz, client, new StringBuilder(path), new ArrayList<String[]>());
     }
 
     private RequestBuilderImpl(Class<T> clazz, Client client, StringBuilder pathBuilder, List<String[]> params) {
@@ -43,7 +43,7 @@ class RequestBuilderImpl<T> implements RequestBuilder<T> {
     @Override
     public <NewType> RequestBuilder<NewType> path(String path, Class<NewType> clazz) {
         pathBuilder.append(path);
-        return new RequestBuilderImpl<>(clazz, client, pathBuilder, params);
+        return new RequestBuilderImpl<NewType>(clazz, client, pathBuilder, params);
     }
 
     @Override

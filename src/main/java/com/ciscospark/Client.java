@@ -6,16 +6,14 @@ import javax.json.JsonReader;
 import javax.json.stream.JsonGenerator;
 import javax.json.stream.JsonParser;
 import java.io.*;
-import java.lang.reflect.AnnotatedType;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -26,6 +24,7 @@ import java.util.regex.Pattern;
  */
 class Client {
     private static final String TRACKING_ID = "TrackingID";
+    public static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
     final URI baseUri;
 
@@ -73,11 +72,11 @@ class Client {
     }
 
     <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
-        return new PagingIterator<>(clazz, getUrl(path, params));
+        return new PagingIterator<T>(clazz, getUrl(path, params));
     }
 
     <T> Iterator<T> list(Class<T> clazz, URL url) {
-        return new PagingIterator<>(clazz, url);
+        return new PagingIterator<T>(clazz, url);
     }
 
     void delete(String path) {
@@ -96,22 +95,25 @@ class Client {
     }
 
 
-    public <T> LinkedResponse<List<T>> paginate(Class<T> clazz, URL url) {
-        Function<InputStream, List<T>> function = istream -> {
-            JsonParser parser = Json.createParser(istream);
-            scrollToItemsArray(parser);
+    public <T> LinkedResponse<List<T>> paginate(final Class<T> clazz, URL url) {
+        LinkedResponse.BodyCreator<List<T>> function = new LinkedResponse.BodyCreator<List<T>>() {
+            @Override
+            public List<T> create(InputStream istream) {
+                JsonParser parser = Json.createParser(istream);
+                Client.this.scrollToItemsArray(parser);
 
-            List<T> result = new ArrayList<>();
-            for (JsonParser.Event event = parser.next();
-                 event == JsonParser.Event.START_OBJECT;
-                 event = parser.next()) {
-                result.add(readObject(clazz,parser));
+                List<T> result = new ArrayList<T>();
+                for (JsonParser.Event event = parser.next();
+                     event == JsonParser.Event.START_OBJECT;
+                     event = parser.next()) {
+                    result.add(readObject(clazz, parser));
+                }
+                return result;
             }
-            return result;
         };
 
         try {
-            return new LinkedResponse<>(this, url, function);
+            return new LinkedResponse<List<T>>(this, url, function);
         } catch (IOException e) {
             throw new SparkException("io error", e);
         }
@@ -256,7 +258,7 @@ class Client {
         if (responseCode == 401) {
             throw new NotAuthenticatedException();
         } else if (responseCode < 200 || responseCode >= 400) {
-            StringBuilder errorMessageBuilder = new StringBuilder("bad response code ");
+            final StringBuilder errorMessageBuilder = new StringBuilder("bad response code ");
             errorMessageBuilder.append(responseCode);
             try {
                 String responseMessage = connection.getResponseMessage();
@@ -269,20 +271,17 @@ class Client {
             }
 
 
-            Function<InputStream, Object> processor = stream -> {
-                ErrorMessage errorMessage = parseErrorMessage(stream);
-                if (errorMessage != null) {
-                    errorMessageBuilder.append(": ");
-                    errorMessageBuilder.append(errorMessage.message);
-                }
-                return null;
-            };
-
+            ErrorMessage errorMessage;
             if (logger != null && logger.isLoggable(Level.FINEST)) {
                 InputStream inputStream = logResponse(connection.getRequestProperty(TRACKING_ID), connection.getErrorStream());
-                processor.apply(inputStream);
+                errorMessage = parseErrorMessage(inputStream);
             } else {
-                processor.apply(connection.getErrorStream());
+                errorMessage = parseErrorMessage(connection.getErrorStream());
+            }
+
+            if (errorMessage != null) {
+                errorMessageBuilder.append(": ");
+                errorMessageBuilder.append(errorMessage.message);
             }
 
             throw new SparkException(errorMessageBuilder.toString());
@@ -334,7 +333,7 @@ class Client {
     private static <T> T readObject(Class<T> clazz, JsonParser parser) {
         try {
             T result = clazz.newInstance();
-            List<String> array = null;
+            List<Object> list = null;
             Field field = null;
             PARSER_LOOP: while (parser.hasNext()) {
                 JsonParser.Event event = parser.next();
@@ -368,14 +367,14 @@ class Client {
                         }
                         break;
                     case VALUE_STRING:
-                        if (array != null) {
-                            array.add(parser.getString());
+                        if (list != null) {
+                            list.add(parser.getString());
                         } else if (field != null) {
                             if (field.getType().isAssignableFrom(String.class)) {
                                 field.set(result, parser.getString());
                             } else if (field.getType().isAssignableFrom(Date.class)) {
-                                Instant value = DateTimeFormatter.ISO_DATE_TIME.parse(parser.getString(), Instant::from);
-                                field.set(result, new Date(value.toEpochMilli()));
+                                DateFormat dateFormat = new SimpleDateFormat(ISO8601_FORMAT);
+                                field.set(result, dateFormat.parse(parser.getString()));
                             } else if (field.getType().isAssignableFrom(URI.class)) {
                                 field.set(result, URI.create(parser.getString()));
                             }
@@ -386,14 +385,28 @@ class Client {
                         field = null;
                         break;
                     case START_ARRAY:
-                        array = new ArrayList<>();
+                        list = new ArrayList<Object>();
                         break;
                     case END_ARRAY:
                         if (field != null) {
-                            field.set(result, array.toArray(new String[array.size()]));
+                            Class itemClazz;
+                            if (field.getType().equals(String[].class)) {
+                                itemClazz = String.class;
+                            } else if (field.getType().equals(URI[].class)) {
+                                itemClazz = URI.class;
+                                ListIterator<Object> iterator = list.listIterator();
+                                while (iterator.hasNext()) {
+                                    Object next = iterator.next();
+                                    iterator.set(URI.create(next.toString()));
+                                }
+                            } else {
+                                throw new SparkException("bad field class: " + field.getType());
+                            }
+                            Object array = Array.newInstance(itemClazz, list.size());
+                            field.set(result, list.toArray((Object[]) array));
                             field = null;
                         }
-                        array = null;
+                        list = null;
                         break;
                     case END_OBJECT:
                         break PARSER_LOOP;
@@ -410,17 +423,18 @@ class Client {
     }
 
     private URL getUrl(String path, List<String[]> params) {
-        StringBuilder urlStringBuilder = new StringBuilder(baseUri.toString() + path);
+        final StringBuilder urlStringBuilder = new StringBuilder(baseUri.toString() + path);
         if (params != null) {
             urlStringBuilder.append("?");
-            params.forEach(param ->
+            for (String param[] : params) {
                 urlStringBuilder
-                        .append(encode(param[0]))
+                        .append(Client.this.encode(param[0]))
                         .append("=")
-                        .append(encode(param[1]))
-                        .append("&")
-            );
+                        .append(Client.this.encode(param[1]))
+                        .append("&");
+            }
         }
+
         URL url;
         try {
             url = new URL(urlStringBuilder.toString());
@@ -449,8 +463,7 @@ class Client {
                     continue;
                 }
 
-                AnnotatedType annotatedType = field.getAnnotatedType();
-                Type type = annotatedType.getType();
+                Type type = field.getType();
                 if (type == String.class) {
                     jsonGenerator.write(field.getName(), (String) value);
                 } else if (type == Integer.class) {
@@ -458,8 +471,8 @@ class Client {
                 } else if (type == BigDecimal.class) {
                     jsonGenerator.write(field.getName(), (BigDecimal) value);
                 } else if (type == Date.class) {
-                    LocalDateTime dateTime = LocalDateTime.from(((Date) value).toInstant());
-                    jsonGenerator.write(field.getName(), dateTime.format(DateTimeFormatter.ISO_DATE_TIME));
+                    DateFormat dateFormat = new SimpleDateFormat(ISO8601_FORMAT);
+                    jsonGenerator.write(field.getName(), dateFormat.format(value));
                 } else if (type == URI.class) {
                     jsonGenerator.write(field.getName(), value.toString());
                 } else if (type == Boolean.class) {
@@ -468,6 +481,12 @@ class Client {
                     jsonGenerator.writeStartArray(field.getName());
                     for (String st : (String[]) value) {
                         jsonGenerator.write(st);
+                    }
+                    jsonGenerator.writeEnd();
+                } else if (type == URI[].class) {
+                    jsonGenerator.writeStartArray(field.getName());
+                    for (URI uri : (URI[]) value) {
+                        jsonGenerator.write(uri.toString());
                     }
                     jsonGenerator.writeEnd();
                 }
@@ -536,6 +555,11 @@ class Client {
             } finally {
                 current = null;
             }
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
         }
     }
 

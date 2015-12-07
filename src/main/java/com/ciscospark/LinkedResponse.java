@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,10 +17,14 @@ import java.util.regex.Pattern;
 public class LinkedResponse<T> {
     private final Client client;
     private Client.Response response;
-    private final Function<InputStream, T> bodyCreator;
-    private final Map<String,URL> urls = new LinkedHashMap<>();
+    private final BodyCreator<T> bodyCreator;
+    private final Map<String,URL> urls = new LinkedHashMap<String, URL>();
 
-    LinkedResponse(Client client, URL url, Function<InputStream, T> bodyCreator) throws IOException {
+    static interface BodyCreator<T> {
+        T create(InputStream stream);
+    }
+
+    LinkedResponse(Client client, URL url, BodyCreator<T> bodyCreator) throws IOException {
         this.client = client;
         this.bodyCreator = bodyCreator;
         followUrl(url);
@@ -64,7 +67,7 @@ public class LinkedResponse<T> {
     }
 
     public T consumeBody() {
-        return bodyCreator.apply(response.inputStream);
+        return bodyCreator.create(response.inputStream);
     }
 
     public void followLink(String rel) {

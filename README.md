@@ -2,7 +2,7 @@
 A Java library for consuming RESTful APIs for Cisco Spark.  Please visit us at http://developer.ciscospark.com/.
 
 # Installing
-This project is compiled with Java 1.8 and [Apache Maven](https://maven.apache.org/)
+This project is compiled with Java 1.6 and [Apache Maven](https://maven.apache.org/)
 
     $ git clone git@github.com:ciscospark/spark-java-sdk
     $ cd spark-java-sdk
