@@ -1,5 +1,7 @@
 package com.ciscospark;
 
+import java.net.URI;
+
 /**
  * Created on 11/24/15.
  */
@@ -10,7 +12,7 @@ public class Message {
     private String personEmail;
     private String text;
     private String file;
-    private String[] files;
+    private URI[] files;
 
     public String getId() {
         return id;
@@ -60,11 +62,11 @@ public class Message {
         this.file = file;
     }
 
-    public String[] getFiles() {
+    public URI[] getFiles() {
         return files;
     }
 
-    public void setFiles(String[] files) {
+    public void setFiles(URI... files) {
         this.files = files;
     }
 }

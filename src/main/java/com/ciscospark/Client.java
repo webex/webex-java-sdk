@@ -1,7 +1,5 @@
 package com.ciscospark;
 
-import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
-
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
@@ -13,6 +11,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -373,7 +374,8 @@ class Client {
                             if (field.getType().isAssignableFrom(String.class)) {
                                 field.set(result, parser.getString());
                             } else if (field.getType().isAssignableFrom(Date.class)) {
-                                field.set(result, new ISO8601DateFormat().parse(parser.getString()));
+                                Instant value = DateTimeFormatter.ISO_DATE_TIME.parse(parser.getString(), Instant::from);
+                                field.set(result, new Date(value.toEpochMilli()));
                             } else if (field.getType().isAssignableFrom(URI.class)) {
                                 field.set(result, URI.create(parser.getString()));
                             }
@@ -456,7 +458,8 @@ class Client {
                 } else if (type == BigDecimal.class) {
                     jsonGenerator.write(field.getName(), (BigDecimal) value);
                 } else if (type == Date.class) {
-                    jsonGenerator.write(field.getName(), new ISO8601DateFormat().format((Date) value));
+                    LocalDateTime dateTime = LocalDateTime.from(((Date) value).toInstant());
+                    jsonGenerator.write(field.getName(), dateTime.format(DateTimeFormatter.ISO_DATE_TIME));
                 } else if (type == URI.class) {
                     jsonGenerator.write(field.getName(), value.toString());
                 } else if (type == Boolean.class) {

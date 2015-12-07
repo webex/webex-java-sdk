@@ -8,13 +8,6 @@
     <artifactId>ciscospark-client</artifactId>
     <version>1.0-SNAPSHOT</version>
 
-    <parent>
-        <groupId>com.cisco.wx2</groupId>
-        <artifactId>hydra</artifactId>
-        <version>1.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
-    </parent>
-
     <build>
         <plugins>
             <plugin>
