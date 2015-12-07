@@ -4,7 +4,7 @@ import java.net.URI;
 import java.util.logging.Logger;
 
 /**
- * Created on 11/24/15.
+ * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public abstract class Spark {
     public abstract RequestBuilder<Room> rooms();

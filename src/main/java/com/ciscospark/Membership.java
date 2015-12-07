@@ -1,7 +1,7 @@
 package com.ciscospark;
 
 /**
- * Created on 11/24/15.
+ * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public class Membership {
     private String id;

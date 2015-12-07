@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Created on 11/24/15.
+ * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 class RequestBuilderImpl<T> implements RequestBuilder<T> {
     private URL url;

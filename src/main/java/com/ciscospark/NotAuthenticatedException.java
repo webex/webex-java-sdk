@@ -1,7 +1,7 @@
 package com.ciscospark;
 
 /**
- * Created on 12/3/15.
+ * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public class NotAuthenticatedException extends SparkException {
     public NotAuthenticatedException() {

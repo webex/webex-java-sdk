@@ -13,7 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Created on 11/28/15.
+ * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public class LinkedResponse<T> {
     private final Client client;

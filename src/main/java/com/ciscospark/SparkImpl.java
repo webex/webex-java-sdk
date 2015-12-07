@@ -1,10 +1,7 @@
 package com.ciscospark;
 
-import java.net.URI;
-import java.util.Iterator;
-
 /**
- * Created on 11/24/15.
+ * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 class SparkImpl extends Spark {
 
