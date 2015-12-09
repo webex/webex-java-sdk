@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  */
 class Client {
     private static final String TRACKING_ID = "TrackingID";
-    public static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
+    public static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
     final URI baseUri;
 
