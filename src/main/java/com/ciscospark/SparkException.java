@@ -18,8 +18,4 @@ public class SparkException extends RuntimeException {
     public SparkException(Throwable cause) {
         super(cause);
     }
-
-    public SparkException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
 }
