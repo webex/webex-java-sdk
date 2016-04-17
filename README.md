@@ -101,6 +101,7 @@ class Example {
 To Receive events from your webhook, Servlets are used.  Any container can be used, for this example we will use jetty.
 
 Jetty requires the following extra dependencies:
+
         <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-servlet</artifactId>
