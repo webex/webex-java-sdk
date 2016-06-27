@@ -11,6 +11,8 @@ public abstract class Spark {
     public abstract RequestBuilder<Membership> memberships();
     public abstract RequestBuilder<Message> messages();
     public abstract RequestBuilder<Person> people();
+    public abstract RequestBuilder<Team> teams();
+    public abstract RequestBuilder<TeamMembership> teamMemberships();
     public abstract RequestBuilder<Webhook> webhooks();
 
     /**

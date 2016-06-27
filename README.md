@@ -80,6 +80,31 @@ class Example {
         message.setRoomId(room.getId());
         message.setFiles(URI.create("http://example.com/hello_world.jpg"));
         spark.messages().post(message);
+        
+        
+        
+        
+        // Create a new team
+        Team team = new Team();
+        team.setName("Brand New Team");
+        team = spark.teams().post(team);
+
+
+        // Add a coworker to the team
+        TeamMembership teamMembership = new TeamMembership();
+        teamMembership.setTeamId(team.getId());
+        teamMembership.setPersonEmail("wile_e_coyote@acme.com");
+        spark.teamMemberships().post(teamMembership);
+
+
+        // List the members of the team
+        spark.teamMemberships()
+                .queryParam("teamId", team.getId())
+                .iterate()
+                .forEachRemaining(member -> {
+                    System.out.println(member.getPersonEmail());
+                });
+
     }
 }
 ```

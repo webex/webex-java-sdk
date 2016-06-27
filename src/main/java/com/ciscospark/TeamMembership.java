@@ -3,16 +3,15 @@ package com.ciscospark;
 import java.util.Date;
 
 /**
- * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
+ * Copyright (c) 2016 Cisco Systems, Inc. See LICENSE file.
  */
-public class Membership {
+public class TeamMembership {
     private String id;
-    private String roomId;
+    private String teamId;
     private String personId;
     private String personDisplayName;
     private String personEmail;
     private Boolean isModerator;
-    private Boolean isMonitor;
     private Date created;
 
     public String getId() {
@@ -23,12 +22,12 @@ public class Membership {
         this.id = id;
     }
 
-    public String getRoomId() {
-        return roomId;
+    public String getTeamId() {
+        return teamId;
     }
 
-    public void setRoomId(String roomId) {
-        this.roomId = roomId;
+    public void setTeamId(String teamId) {
+        this.teamId = teamId;
     }
 
     public String getPersonId() {
@@ -37,14 +36,6 @@ public class Membership {
 
     public void setPersonId(String personId) {
         this.personId = personId;
-    }
-
-    public String getPersonDisplayName() {
-        return personDisplayName;
-    }
-
-    public void setPersonDisplayName(String personDisplayName) {
-        this.personDisplayName = personDisplayName;
     }
 
     public String getPersonEmail() {
@@ -63,12 +54,12 @@ public class Membership {
         this.isModerator = isModerator;
     }
 
-    public Boolean getIsMonitor() {
-        return isMonitor;
+    public String getPersonDisplayName() {
+        return personDisplayName;
     }
 
-    public void setIsMonitor(Boolean isMonitor) {
-        this.isMonitor = isMonitor;
+    public void setPersonDisplayName(String personDisplayName) {
+        this.personDisplayName = personDisplayName;
     }
 
     public Date getCreated() {
@@ -78,4 +69,5 @@ public class Membership {
     public void setCreated(Date created) {
         this.created = created;
     }
+
 }
