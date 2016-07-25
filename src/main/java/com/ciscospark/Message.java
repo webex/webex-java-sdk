@@ -11,6 +11,7 @@ public class Message {
     private String personId;
     private String personEmail;
     private String text;
+    private String markdown;
     private String file;
     private URI[] files;
 
@@ -68,5 +69,13 @@ public class Message {
 
     public void setFiles(URI... files) {
         this.files = files;
+    }
+    
+    public String getMarkdown(){
+    	return this.markdown;
+    }
+    
+    public void setMarkdown(String markdown){
+    	this.markdown=markdown;
     }
 }
