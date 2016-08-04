@@ -1,6 +1,7 @@
 package com.ciscospark;
 
 import java.net.URI;
+import java.util.Date;
 
 /**
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
@@ -12,6 +13,8 @@ public class Message {
     private String personEmail;
     private String text;
     private String file;
+    private String roomType;
+    private Date created;
     private URI[] files;
 
     public String getId() {
@@ -68,5 +71,21 @@ public class Message {
 
     public void setFiles(URI... files) {
         this.files = files;
+    }
+
+    public Date getCreated() {
+	return created;
+    }
+ 
+    public void setCreated(Date created) {
+	this.created = created;
+    }
+
+    public String getRoomType() {
+        return roomType;
+    } 
+    
+    public void setRoomType(String roomType) {
+	this.roomType = roomType;
     }
 }
