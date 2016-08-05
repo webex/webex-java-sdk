@@ -13,6 +13,7 @@ public class Message {
     private String text;
     private String file;
     private URI[] files;
+    private String markdown;
 
     public String getId() {
         return id;
@@ -69,4 +70,13 @@ public class Message {
     public void setFiles(URI... files) {
         this.files = files;
     }
+    
+    public String getMarkdown() {
+        return markdown;
+    }
+
+    public void setMarkdown(String markdown) {
+        this.markdown = markdown;
+    }
+    
 }
