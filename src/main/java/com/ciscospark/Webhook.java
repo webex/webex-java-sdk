@@ -3,9 +3,6 @@ package com.ciscospark;
 import java.net.URI;
 import java.util.Date;
 
-/**
- * Created on 11/24/15.
- */
 public class Webhook {
     private String id;
     private String name;

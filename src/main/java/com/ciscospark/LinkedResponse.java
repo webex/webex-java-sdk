@@ -12,9 +12,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Created on 11/28/15.
- */
 public class LinkedResponse<T> {
     private final Client client;
     private Client.Response response;

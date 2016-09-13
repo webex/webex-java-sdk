@@ -2,9 +2,6 @@ package com.ciscospark;
 
 import java.net.URI;
 
-/**
- * Created on 11/24/15.
- */
 class AccessTokenRequest {
     private String grant_type;
     private String client_id;

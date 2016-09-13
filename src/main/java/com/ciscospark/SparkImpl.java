@@ -1,11 +1,5 @@
 package com.ciscospark;
 
-import java.net.URI;
-import java.util.Iterator;
-
-/**
- * Created on 11/24/15.
- */
 class SparkImpl extends Spark {
 
     Client client;
@@ -30,7 +24,7 @@ class SparkImpl extends Spark {
     }
 
     @Override
-    public RequestBuilder<Person> people(){
+    public RequestBuilder<Person> people() {
         return new RequestBuilderImpl(Person.class, client, "/people");
     }
 

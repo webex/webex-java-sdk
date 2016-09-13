@@ -19,9 +19,6 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Created on 11/24/15.
- */
 class Client {
     private static final String TRACKING_ID = "TrackingID";
     public static final String  ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";

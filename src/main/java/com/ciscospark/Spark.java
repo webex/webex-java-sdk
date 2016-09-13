@@ -3,9 +3,6 @@ package com.ciscospark;
 import java.net.URI;
 import java.util.logging.Logger;
 
-/**
- * Created on 11/24/15.
- */
 public abstract class Spark {
     public abstract RequestBuilder<Room> rooms();
     public abstract RequestBuilder<Membership> memberships();

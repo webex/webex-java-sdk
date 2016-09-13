@@ -1,8 +1,5 @@
 package com.ciscospark;
 
-/**
- * Created on 11/24/15.
- */
 class AccessTokenResponse {
     private String access_token;
     private Long expires_in;

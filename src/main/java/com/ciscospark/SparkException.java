@@ -1,10 +1,5 @@
 package com.ciscospark;
 
-import java.net.MalformedURLException;
-
-/**
- * Created on 11/24/15.
- */
 public class SparkException extends RuntimeException {
     public SparkException() {
     }

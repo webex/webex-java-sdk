@@ -1,8 +1,5 @@
 package com.ciscospark;
 
-/**
- * Created on 12/3/15.
- */
 public class NotAuthenticatedException extends SparkException {
     public NotAuthenticatedException() {
     }

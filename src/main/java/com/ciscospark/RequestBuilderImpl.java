@@ -5,9 +5,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Created on 11/24/15.
- */
 class RequestBuilderImpl<T> implements RequestBuilder<T> {
     private URL url;
     final StringBuilder pathBuilder;

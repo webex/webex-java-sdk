@@ -1,8 +1,5 @@
 package com.ciscospark;
 
-/**
- * Created on 11/24/15.
- */
 public class Membership {
     private String id;
     private String roomId;
