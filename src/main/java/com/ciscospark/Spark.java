@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.logging.Logger;
 
 public abstract class Spark {
+
     public abstract RequestBuilder<Room> rooms();
     public abstract RequestBuilder<Membership> memberships();
     public abstract RequestBuilder<Message> messages();
@@ -12,9 +13,6 @@ public abstract class Spark {
     public abstract RequestBuilder<TeamMembership> teamMemberships();
     public abstract RequestBuilder<Webhook> webhooks();
 
-    /**
-     * Created on 11/24/15.
-     */
     public static class Builder {
         private URI redirectUri;
         private String authCode;
@@ -22,6 +20,7 @@ public abstract class Spark {
         private String refreshToken;
         private String clientId;
         private String clientSecret;
+        private Boolean enableEndToEndEncryption;
         private Logger logger;
         private URI baseUrl = URI.create("https://api.ciscospark.com/v1");
 
@@ -65,8 +64,18 @@ public abstract class Spark {
             return this;
         }
 
+        public Builder enableEndToEndEncryption(Boolean enableEndToEndEncryption) {
+            this.enableEndToEndEncryption = enableEndToEndEncryption;
+            return this;
+        }
+
         public Spark build() {
-            return new SparkImpl(new Client(baseUrl, authCode, redirectUri, accessToken, refreshToken, clientId, clientSecret, logger));
+            Client client = new Client(baseUrl, authCode, redirectUri, accessToken, refreshToken, clientId, clientSecret, logger, enableEndToEndEncryption);
+            if (enableEndToEndEncryption) {
+                return new SparkEncryptionImpl(client);
+            } else {
+                return new SparkImpl(client);
+            }
         }
     }
 

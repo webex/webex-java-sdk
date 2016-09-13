@@ -5,14 +5,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-class RequestBuilderImpl<T> implements RequestBuilder<T> {
-    private URL url;
-    final StringBuilder pathBuilder;
-    final List<String[]> params;
-    final Client client;
-    final Class<T> clazz;
+public class RequestBuilderImpl<T> implements RequestBuilder<T> {
 
-    RequestBuilderImpl(Class<T> clazz, Client client, String path) {
+    protected URL url;
+    protected final Client client;
+    protected final StringBuilder pathBuilder;
+    protected final List<String[]> params;
+    protected final Class<T> clazz;
+
+    public RequestBuilderImpl(Class<T> clazz, Client client, String path) {
         this(clazz, client, new StringBuilder(path), new ArrayList<>());
     }
 

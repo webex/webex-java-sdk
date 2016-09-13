@@ -14,11 +14,11 @@ import java.util.regex.Pattern;
 
 public class LinkedResponse<T> {
     private final Client client;
-    private Client.Response response;
+    private Response response;
     private final Function<InputStream, T> bodyCreator;
     private final Map<String,URL> urls = new LinkedHashMap<>();
 
-    LinkedResponse(Client client, URL url, Function<InputStream, T> bodyCreator) throws IOException {
+    public LinkedResponse(Client client, URL url, Function<InputStream, T> bodyCreator) throws IOException {
         this.client = client;
         this.bodyCreator = bodyCreator;
         followUrl(url);

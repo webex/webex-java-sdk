@@ -19,21 +19,23 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-class Client {
+public class Client {
+
     private static final String TRACKING_ID = "TrackingID";
-    public static final String  ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
+    private static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
-    final URI baseUri;
+    private final URI baseUri;
+    private final URI redirectUri;
+    private final String clientId;
+    private final String clientSecret;
+    private final Logger logger;
+    private final Boolean enableEndToEndEncryption;
 
-    String accessToken;
-    String authCode;
-    final URI redirectUri;
-    String refreshToken;
-    final String clientId;
-    final String clientSecret;
-    final Logger logger;
+    private String accessToken;
+    private String authCode;
+    private String refreshToken;
 
-    Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger) {
+    public Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger, Boolean enableEndToEndEncryption) {
         this.authCode = authCode;
         this.redirectUri = redirectUri;
         this.baseUri = baseUri;
@@ -42,45 +44,51 @@ class Client {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.logger = logger;
+        this.enableEndToEndEncryption = enableEndToEndEncryption;
     }
 
-    <T> T post(Class<T> clazz, String path, T body) {
+    public <T> T post(Class<T> clazz, String path, T body) {
         return readJson(clazz, request("POST", path, null, body));
     }
 
-    <T> T post(Class<T> clazz, URL url, T body) {
+    public <T> T post(Class<T> clazz, URL url, T body) {
         return readJson(clazz, request(url, "POST", body).inputStream);
     }
 
-    <T> T put(Class<T> clazz, String path, T body) {
+    // TODO
+    public <U, V> V posts(Class<V> clazz, String path, U body) {
+        return readJson(clazz, request("POST", path, null, body));
+    }
+
+    public <T> T put(Class<T> clazz, String path, T body) {
         return readJson(clazz, request("PUT", path, null, body));
     }
 
-    <T> T put(Class<T> clazz, URL url, T body) {
+    public <T> T put(Class<T> clazz, URL url, T body) {
         return readJson(clazz, request(url, "PUT", body).inputStream);
     }
 
-    <T> T get(Class<T> clazz, String path, List<String[]> params) {
+    public <T> T get(Class<T> clazz, String path, List<String[]> params) {
         return readJson(clazz, request("GET", path, params, null));
     }
 
-    <T> T get(Class<T> clazz, URL url) {
+    public <T> T get(Class<T> clazz, URL url) {
         return readJson(clazz, request(url, "GET", null).inputStream);
     }
 
-    <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
+    public <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
         return new PagingIterator<>(clazz, getUrl(path, params));
     }
 
-    <T> Iterator<T> list(Class<T> clazz, URL url) {
+    public <T> Iterator<T> list(Class<T> clazz, URL url) {
         return new PagingIterator<>(clazz, url);
     }
 
-    void delete(String path) {
+    public void delete(String path) {
         delete(getUrl(path, null));
     }
 
-    void delete(URL url) {
+    public void delete(URL url) {
         try {
             HttpURLConnection connection = getConnection(url);
             connection.setRequestMethod("DELETE");
@@ -91,7 +99,6 @@ class Client {
         }
     }
 
-
     public <T> LinkedResponse<List<T>> paginate(Class<T> clazz, URL url) {
         Function<InputStream, List<T>> function = istream -> {
             JsonParser parser = Json.createParser(istream);
@@ -101,7 +108,7 @@ class Client {
             for (JsonParser.Event event = parser.next();
                  event == JsonParser.Event.START_OBJECT;
                  event = parser.next()) {
-                result.add(readObject(clazz,parser));
+                result.add(readObject(clazz, parser));
             }
             return result;
         };
@@ -118,22 +125,12 @@ class Client {
         return paginate(clazz, url);
     }
 
-
-    <T> InputStream request(String method, String path, List<String[]> params, T body) {
+    private <T> InputStream request(String method, String path, List<String[]> params, T body) {
         URL url = getUrl(path, params);
         return request(url, method, body).inputStream;
     }
-    static class Response {
-        HttpURLConnection connection;
-        InputStream inputStream;
 
-        public Response(HttpURLConnection connection, InputStream inputStream) {
-            this.connection = connection;
-            this.inputStream = inputStream;
-        }
-    }
-
-    <T> Response request(URL url, String method, T body) {
+    public <T> Response request(URL url, String method, T body) {
         if (accessToken == null) {
             if (!authenticate()) {
                 throw new NotAuthenticatedException();
@@ -151,11 +148,15 @@ class Client {
         }
     }
 
+    public String getAccessToken() {
+        return accessToken;
+    }
+
     private boolean authenticate() {
         if (clientId != null && clientSecret != null) {
             if (authCode != null && redirectUri != null) {
                 log(Level.FINE, "Requesting access token");
-                URL url = getUrl("/access_token",null);
+                URL url = getUrl("/access_token", null);
                 AccessTokenRequest body = new AccessTokenRequest();
                 body.setGrant_type("authorization_code");
                 body.setClient_id(clientId);
@@ -170,7 +171,7 @@ class Client {
                 return true;
             } else if (refreshToken != null) {
                 log(Level.FINE, "Refreshing access token");
-                URL url = getUrl("/access_token",null);
+                URL url = getUrl("/access_token", null);
                 AccessTokenRequest body = new AccessTokenRequest();
                 body.setClient_id(clientId);
                 body.setClient_secret(clientSecret);
@@ -198,7 +199,7 @@ class Client {
             connection.setRequestMethod(method);
             if (logger != null && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Request {0}: {1} {2}",
-                        new Object[] { trackingId, method, connection.getURL().toString() });
+                        new Object[]{trackingId, method, connection.getURL().toString()});
             }
             if (body != null) {
                 connection.setDoOutput(true);
@@ -206,7 +207,7 @@ class Client {
                     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                     writeJson(body, byteArrayOutputStream);
                     logger.log(Level.FINEST, "Request Body {0}: {1}",
-                            new Object[] { trackingId, byteArrayOutputStream.toString() });
+                            new Object[]{trackingId, byteArrayOutputStream.toString()});
                     byteArrayOutputStream.writeTo(connection.getOutputStream());
                 } else {
                     writeJson(body, connection.getOutputStream());
@@ -216,7 +217,7 @@ class Client {
             int responseCode = connection.getResponseCode();
             if (logger != null && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Response {0}: {1} {2}",
-                        new Object[] { trackingId, responseCode, connection.getResponseMessage() });
+                        new Object[]{trackingId, responseCode, connection.getResponseMessage()});
             }
             checkForErrorResponse(connection, responseCode);
 
@@ -269,7 +270,7 @@ class Client {
                 ErrorMessage errorMessage = parseErrorMessage(stream);
                 if (errorMessage != null) {
                     errorMessageBuilder.append(": ");
-                    errorMessageBuilder.append(errorMessage.message);
+                    errorMessageBuilder.append(errorMessage.getMessage());
                 }
                 return null;
             };
@@ -285,11 +286,6 @@ class Client {
         }
     }
 
-    static class ErrorMessage {
-        String message;
-        String trackingId;
-    }
-
     private static ErrorMessage parseErrorMessage(InputStream errorStream) {
         try {
             if (errorStream == null) {
@@ -298,8 +294,8 @@ class Client {
             JsonReader reader = Json.createReader(errorStream);
             JsonObject jsonObject = reader.readObject();
             ErrorMessage result = new ErrorMessage();
-            result.message = jsonObject.getString("message");
-            result.trackingId = jsonObject.getString("trackingId");
+            result.setMessage(jsonObject.getString("message"));
+            result.setTrackingId(jsonObject.getString("trackingId"));
             return result;
         } catch (Exception ex) {
             return null;
@@ -316,10 +312,13 @@ class Client {
             }
             connection.setRequestProperty("Authorization", authorization);
         }
+        // TODO - I don't like this, should pass in the header map as a whole
+        if (enableEndToEndEncryption) {
+            connection.setRequestProperty("X-Spark-Content-Type", "application/json+spark");
+        }
         connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
         return connection;
     }
-
 
     private static <T> T readJson(Class<T> clazz, InputStream inputStream) {
         JsonParser parser = Json.createParser(inputStream);
@@ -332,7 +331,8 @@ class Client {
             T result = clazz.newInstance();
             List<String> array = null;
             Field field = null;
-            PARSER_LOOP: while (parser.hasNext()) {
+            PARSER_LOOP:
+            while (parser.hasNext()) {
                 JsonParser.Event event = parser.next();
                 switch (event) {
                     case KEY_NAME:
@@ -414,11 +414,11 @@ class Client {
         if (params != null) {
             urlStringBuilder.append("?");
             params.forEach(param ->
-                urlStringBuilder
-                        .append(encode(param[0]))
-                        .append("=")
-                        .append(encode(param[1]))
-                        .append("&")
+                    urlStringBuilder
+                            .append(encode(param[0]))
+                            .append("=")
+                            .append(encode(param[1]))
+                            .append("&")
             );
         }
         URL url;
@@ -479,7 +479,7 @@ class Client {
         jsonGenerator.close();
     }
 
-    private class PagingIterator<T> implements Iterator<T> {
+    public class PagingIterator<T> implements Iterator<T> {
         private final Class<T> clazz;
         private URL url;
         private HttpURLConnection connection;
@@ -538,13 +538,11 @@ class Client {
         }
     }
 
-
-
     private void scrollToItemsArray(JsonParser parser) {
         JsonParser.Event event;
         while (parser.hasNext()) {
             event = parser.next();
-            if (event == JsonParser.Event.KEY_NAME &&  parser.getString().equals("items")) {
+            if (event == JsonParser.Event.KEY_NAME && parser.getString().equals("items")) {
                 break;
             }
         }
@@ -554,8 +552,6 @@ class Client {
             throw new SparkException("bad json");
         }
     }
-
-
 
     private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
 

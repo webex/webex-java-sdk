@@ -2,7 +2,7 @@ package com.ciscospark;
 
 import java.net.URI;
 
-class AccessTokenRequest {
+public class AccessTokenRequest {
     private String grant_type;
     private String client_id;
     private String client_secret;

@@ -1,6 +1,6 @@
 package com.ciscospark;
 
-class AccessTokenResponse {
+public class AccessTokenResponse {
     private String access_token;
     private Long expires_in;
     private String refresh_token;

@@ -1,16 +1,18 @@
 package com.ciscospark;
 
-public class SparkImpl extends Spark {
+public class SparkEncryptionImpl extends Spark {
 
     private final Client client;
+    private final KeyManager keyManager;
 
-    public SparkImpl(Client client) {
+    public SparkEncryptionImpl(Client client) {
         this.client = client;
+        this.keyManager = new KeyManager(client);
     }
 
     @Override
     public RequestBuilder<Room> rooms() {
-        return new RequestBuilderImpl(Room.class, client, "/rooms");
+        return new RequestBuilderRoomEncryptionImpl(Room.class, client, "/rooms", keyManager);
     }
 
     @Override
