@@ -56,8 +56,12 @@ public class Client {
     }
 
     // TODO
+    public <U, V> V posts(Class<V> clazz, String path, List<String[]> params, U body) {
+        return readJson(clazz, request("POST", path, params, body));
+    }
+
     public <U, V> V posts(Class<V> clazz, String path, U body) {
-        return readJson(clazz, request("POST", path, null, body));
+        return posts(clazz, path, null, body);
     }
 
     public <T> T put(Class<T> clazz, String path, T body) {
@@ -125,7 +129,7 @@ public class Client {
         return paginate(clazz, url);
     }
 
-    private <T> InputStream request(String method, String path, List<String[]> params, T body) {
+    <T> InputStream request(String method, String path, List<String[]> params, T body) {
         URL url = getUrl(path, params);
         return request(url, method, body).inputStream;
     }
@@ -329,7 +333,7 @@ public class Client {
     private static <T> T readObject(Class<T> clazz, JsonParser parser) {
         try {
             T result = clazz.newInstance();
-            List<String> array = null;
+            List<Object> array = null;
             Field field = null;
             PARSER_LOOP:
             while (parser.hasNext()) {
@@ -390,13 +394,33 @@ public class Client {
                         break;
                     case END_ARRAY:
                         if (field != null) {
-                            field.set(result, array.toArray(new String[array.size()]));
+                            // TODO - don't hardcode class name
+                            Class<?> type = field.getType();
+                            String name = type.getName();
+                            if (name.contains("KmsKey")) {
+                                field.set(result, array.toArray(new KmsKey[array.size()]));
+                            } else {
+                                field.set(result, array.toArray(new Object[array.size()]));
+                            }
                             field = null;
                         }
                         array = null;
                         break;
                     case END_OBJECT:
                         break PARSER_LOOP;
+                    case START_OBJECT:
+                        if (field != null) {
+                            // TODO - don't hardcode class name
+                            Class<?> aClass = getSdkClass(field);
+                            Object value = readObject(aClass, parser);
+                            if (array != null) {
+                                array.add(value);
+                            } else {
+                                field.set(result, value);
+                                field = null;
+                            }
+                        }
+                        break;
                     default:
                         throw new SparkException("bad json event: " + event);
                 }
@@ -407,6 +431,20 @@ public class Client {
         } catch (Exception ex) {
             throw new SparkException(ex);
         }
+    }
+
+    private static Class<?> getSdkClass(Field field) {
+        Class<?> type = field.getType();
+        String name = type.getName();
+        Class<?> aClass;
+        if (name.contains("KmsKey")) {
+            aClass = KmsKey.class;
+        } else if (name.contains("KmsJwk")) {
+            aClass = KmsJwk.class;
+        } else {
+            throw new SparkException("Unsupported class");
+        }
+        return aClass;
     }
 
     private URL getUrl(String path, List<String[]> params) {

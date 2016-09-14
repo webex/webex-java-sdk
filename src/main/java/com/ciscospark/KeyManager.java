@@ -1,8 +1,5 @@
 package com.ciscospark;
 
-import com.cisco.wx2.hydra.client.HydraClientFactory;
-
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -55,24 +52,11 @@ public class KeyManager {
         return client.posts(OctetSequenceKey.class, "/kms/ecdheKey", kmsInfo);
     }
 
-    private KmsResponseBody createKeys(OctetSequenceKey octetSequenceKey, int count) {
+    private KmsResponseBody createKeys(OctetSequenceKey octetSequenceKey, Integer count) {
         // Pass param for keys count
-//        return client.posts(KmsResponseBody.class, "/kms", octetSequenceKey);
-
-        HydraClientFactory hydraClientFactory = HydraClientFactory.builder()
-                .baseUrl("http://localhost:8080/hydra-mount/v1")
-                .apiServiceUrl(URI.create("http://localhost:8080/hydra-mount/v1"))
-                .connectTimeout(30 * 1000)
-                .readTimeout(60 * 1000)
-                .userAgent("Spark Hydra Testing")
-                .disableSSLChecks(true)
-                .maxConnections(100)
-                .maxConnectionsPerRoute(100)
-                .build();
-        com.cisco.wx2.client.Client hydraClient = hydraClientFactory.newHydraClient(client.getAccessToken());
-        return hydraClient.post("kms")
-                .jsonEntity(octetSequenceKey)
-                .param("count", count)
-                .execute(KmsResponseBody.class);
+        String[] param = {"count", count.toString()};
+        List<String[]> params = new ArrayList<>();
+        params.add(param);
+        return client.posts(KmsResponseBody.class, "/kms", params, octetSequenceKey);
     }
 }
