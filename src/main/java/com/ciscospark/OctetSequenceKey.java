@@ -84,4 +84,17 @@ public class OctetSequenceKey {
     public void setX5u(URI x5u) {
         this.x5u = x5u;
     }
+
+    public com.nimbusds.jose.jwk.OctetSequenceKey getJwkOctetSequenceKey() {
+        com.nimbusds.jose.jwk.OctetSequenceKey octetSequenceKey = new com.nimbusds.jose.jwk.OctetSequenceKey.Builder(new Base64URL(getK()))
+                .keyUse(getUse())
+                .keyOperations(getOps())
+                .algorithm(getAlg())
+                .keyID(getKid())
+                .x509CertURL(getX5u())
+                .x509CertThumbprint(getX5t())
+                .x509CertChain(getX5c())
+                .build();
+        return octetSequenceKey;
+    }
 }

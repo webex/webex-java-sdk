@@ -1,7 +1,5 @@
 package com.ciscospark;
 
-import com.nimbusds.jose.util.Base64URL;
-
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,38 +15,27 @@ public class RequestBuilderRoomEncryptionImpl<T> extends RequestBuilderImpl<T> {
         this.kmsKeyManager = kmsKeyManager;
     }
 
-    // TODO - shouldn't pass in userUuid
     public T post(T body) {
-        OctetSequenceKey hydraOctetSequenceKey = kmsKeyManager.getEcdheKey();
+        // Retrieve keys
+        OctetSequenceKey octetSequenceKey = kmsKeyManager.getEcdheKey();
         KmsKey convKey = kmsKeyManager.requestNewKmsKey();
         KmsKey convTitleKey = kmsKeyManager.requestNewKmsKey();
         List<URI> keyUriList = new ArrayList<>();
         keyUriList.add(convKey.getKmsKeyUriFromEncryptionKeyUri());
         keyUriList.add(convTitleKey.getKmsKeyUriFromEncryptionKeyUri());
 
-        // Compose Kms Message
+        // Compose KmsMessage
         final List<String> auths = Arrays.asList();
-
-        // TODO - don't use KMS SDK
         KmsRequestBody.Client kmsRequestBodyClient = new KmsRequestBody.Client() {{
             // TODO - what clientId I should use
-            setClientId("https://ciscospark.com/webhookDevices/f5a0215c-d5d4-11e5-ab30-625662870761");
+            setClientId("https://ciscospark.com/sdk/" + UUID.randomUUID());
 //            getCredential().setUserId(userUuid.toString()); // Not necessary
             getCredential().setBearer(client.getAccessToken());
         }};
-        com.nimbusds.jose.jwk.OctetSequenceKey octetSequenceKey = new com.nimbusds.jose.jwk.OctetSequenceKey.Builder(new Base64URL(hydraOctetSequenceKey.getK()))
-                .keyUse(hydraOctetSequenceKey.getUse())
-                .keyOperations(hydraOctetSequenceKey.getOps())
-                .algorithm(hydraOctetSequenceKey.getAlg())
-                .keyID(hydraOctetSequenceKey.getKid())
-                .x509CertURL(hydraOctetSequenceKey.getX5u())
-                .x509CertThumbprint(hydraOctetSequenceKey.getX5t())
-                .x509CertChain(hydraOctetSequenceKey.getX5c())
-                .build();
+        com.nimbusds.jose.jwk.OctetSequenceKey jwkOctetSequenceKeyoctetSequenceKey = octetSequenceKey.getJwkOctetSequenceKey();
         String requestId = UUID.randomUUID().toString();
-
         KmsRequest kmsRequest = KmsRequestFactory.newCreateResourceRequest(kmsRequestBodyClient, requestId, auths, keyUriList);
-        String requestBlob = kmsRequest.asEncryptedBlob(octetSequenceKey);
+        String requestBlob = kmsRequest.asEncryptedBlob(jwkOctetSequenceKeyoctetSequenceKey);
 
         // TODO - not safe, don't cast
         // Create room
