@@ -1,8 +1,5 @@
 package com.ciscospark;
 
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.DirectEncrypter;
-import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.util.Base64URL;
 
 import java.net.URI;
@@ -13,18 +10,18 @@ import java.util.UUID;
 
 public class RequestBuilderRoomEncryptionImpl<T> extends RequestBuilderImpl<T> {
 
-    private KeyManager keyManager;
+    private KmsKeyManager kmsKeyManager;
 
-    public RequestBuilderRoomEncryptionImpl(Class clazz, Client client, String path, KeyManager keyManager) {
+    public RequestBuilderRoomEncryptionImpl(Class clazz, Client client, String path, KmsKeyManager kmsKeyManager) {
         super(clazz, client, path);
-        this.keyManager = keyManager;
+        this.kmsKeyManager = kmsKeyManager;
     }
 
     // TODO - shouldn't pass in userUuid
-    public T post(T body, UUID userUuid) {
-        OctetSequenceKey hydraOctetSequenceKey = keyManager.getEcdheKey();
-        KmsKey convKey = keyManager.requestNewKmsKey();
-        KmsKey convTitleKey = keyManager.requestNewKmsKey();
+    public T post(T body) {
+        OctetSequenceKey hydraOctetSequenceKey = kmsKeyManager.getEcdheKey();
+        KmsKey convKey = kmsKeyManager.requestNewKmsKey();
+        KmsKey convTitleKey = kmsKeyManager.requestNewKmsKey();
         List<URI> keyUriList = new ArrayList<>();
         keyUriList.add(convKey.getKmsKeyUriFromEncryptionKeyUri());
         keyUriList.add(convTitleKey.getKmsKeyUriFromEncryptionKeyUri());
@@ -36,7 +33,7 @@ public class RequestBuilderRoomEncryptionImpl<T> extends RequestBuilderImpl<T> {
         KmsRequestBody.Client kmsRequestBodyClient = new KmsRequestBody.Client() {{
             // TODO - what clientId I should use
             setClientId("https://ciscospark.com/webhookDevices/f5a0215c-d5d4-11e5-ab30-625662870761");
-            getCredential().setUserId(userUuid.toString());
+//            getCredential().setUserId(userUuid.toString()); // Not necessary
             getCredential().setBearer(client.getAccessToken());
         }};
         com.nimbusds.jose.jwk.OctetSequenceKey octetSequenceKey = new com.nimbusds.jose.jwk.OctetSequenceKey.Builder(new Base64URL(hydraOctetSequenceKey.getK()))
@@ -53,44 +50,17 @@ public class RequestBuilderRoomEncryptionImpl<T> extends RequestBuilderImpl<T> {
         KmsRequest kmsRequest = KmsRequestFactory.newCreateResourceRequest(kmsRequestBodyClient, requestId, auths, keyUriList);
         String requestBlob = kmsRequest.asEncryptedBlob(octetSequenceKey);
 
-        // TODO - not safe
-        final String title = ((Room) body).getTitle();
-        String encryptedTitle = encryptMessage(convTitleKey, title);
-//        final KMSMessageSynchronusClient kmsMessageSynchronusClient = new KMSMessageSynchronusClient(null);
-//        final String encryptedTitle = kmsMessageSynchronusClient.encryptMessage(convTitleKey, title);
-        assert encryptedTitle != null;
-
+        // TODO - not safe, don't cast
         // Create room
         Room hydraRoomRequest = (Room) body;
+        String title = hydraRoomRequest.getTitle();
+        String encryptedTitle = convTitleKey.encryptMessage(title);
         hydraRoomRequest.setTitle(encryptedTitle);
         hydraRoomRequest.setEncryptionKeyUrl(convKey.getUri().toString());
         hydraRoomRequest.setEncryptionKeyConvTitleUrl(convTitleKey.getUri().toString());
         hydraRoomRequest.setKmsMessage(requestBlob);
 
-        // TODO - set request header!!!
-
         // TODO - handle response and response header
-//        if (url != null) {
-//            return kmsRequestBodyClient.post(clazz, url, body);
-//        } else {
-
-        return super.client.post(clazz, pathBuilder.toString(), body);
-//        }
+        return client.post(clazz, pathBuilder.toString(), body);
     }
-
-    private String encryptMessage(KmsKey kmsKey, String cleartext) {
-        String encryptedText = null;
-        try {
-            com.nimbusds.jose.jwk.OctetSequenceKey e = (com.nimbusds.jose.jwk.OctetSequenceKey) JWK.parse(KmsApi.convertToJson(kmsKey.getJwk()));
-            JWEHeader header = (new JWEHeader.Builder(JWEAlgorithm.DIR, EncryptionMethod.A256GCM)).keyID(e.getKeyID()).build();
-            JWEObject jwe = new JWEObject(header, new Payload(cleartext));
-            DirectEncrypter encrypter = new DirectEncrypter(e.toByteArray());
-            jwe.encrypt(encrypter);
-            encryptedText = jwe.serialize();
-        } catch (Exception e) {
-        }
-        return encryptedText;
-    }
-
-
 }

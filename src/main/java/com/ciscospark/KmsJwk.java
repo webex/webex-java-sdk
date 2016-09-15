@@ -1,5 +1,7 @@
 package com.ciscospark;
 
+import com.nimbusds.jose.jwk.JWK;
+
 public class KmsJwk {
 
     private String alg;
@@ -157,5 +159,9 @@ public class KmsJwk {
 
     public void setK(String k) {
         this.k = k;
+    }
+
+    public JWK toJWK() throws Exception {
+        return JWK.parse(KmsApi.convertToJson(this));
     }
 }

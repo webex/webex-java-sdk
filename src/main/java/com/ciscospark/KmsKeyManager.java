@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class KeyManager {
+public class KmsKeyManager {
 
     private final static Integer KMS_KEY_REQUEST_COUNT = 10;
     private final Client client;
@@ -17,7 +17,7 @@ public class KeyManager {
     // TODO - cache keys here, set the max number of keys and drop the oldest key
     // FIFO - first in first out
 
-    public KeyManager(Client client) {
+    public KmsKeyManager(Client client) {
         this.client = client;
     }
 

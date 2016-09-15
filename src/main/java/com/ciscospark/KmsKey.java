@@ -1,5 +1,8 @@
 package com.ciscospark;
 
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.DirectEncrypter;
+
 import java.net.URI;
 import java.util.Date;
 import java.util.UUID;
@@ -86,6 +89,20 @@ public class KmsKey {
 
     public void setBindDate(Date bindDate) {
         this.bindDate = bindDate;
+    }
+
+    public String encryptMessage(String cleartext) {
+        String encryptedText = null;
+        try {
+            com.nimbusds.jose.jwk.OctetSequenceKey octetSequenceKey = (com.nimbusds.jose.jwk.OctetSequenceKey) jwk.toJWK();
+            JWEHeader jweHeader = (new JWEHeader.Builder(JWEAlgorithm.DIR, EncryptionMethod.A256GCM)).keyID(octetSequenceKey.getKeyID()).build();
+            JWEObject jweObject = new JWEObject(jweHeader, new Payload(cleartext));
+            DirectEncrypter directEncrypter = new DirectEncrypter(octetSequenceKey.toByteArray());
+            jweObject.encrypt(directEncrypter);
+            encryptedText = jweObject.serialize();
+        } catch (Exception e) {
+        }
+        return encryptedText;
     }
 
     public URI getKmsKeyUriFromEncryptionKeyUri() {
