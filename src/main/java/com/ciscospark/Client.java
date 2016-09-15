@@ -22,7 +22,6 @@ import java.util.regex.Pattern;
 public class Client {
 
     private static final String TRACKING_ID = "TrackingID";
-    private static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
     private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
     private final URI baseUri;
     private final URI redirectUri;
@@ -32,6 +31,7 @@ public class Client {
     private final Boolean enableEndToEndEncryption;
     private String accessToken;
     private String authCode;
+    private JsonMapper jsonMapper = new JsonMapper();
     private String refreshToken;
 
     public Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger, Boolean enableEndToEndEncryption) {
@@ -46,176 +46,36 @@ public class Client {
         this.enableEndToEndEncryption = enableEndToEndEncryption;
     }
 
-    private static ErrorMessage parseErrorMessage(InputStream errorStream) {
-        try {
-            if (errorStream == null) {
-                return null;
-            }
-            JsonReader reader = Json.createReader(errorStream);
-            JsonObject jsonObject = reader.readObject();
-            ErrorMessage result = new ErrorMessage();
-            result.setMessage(jsonObject.getString("message"));
-            result.setTrackingId(jsonObject.getString("trackingId"));
-            return result;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    private static <T> T readJson(Class<T> clazz, InputStream inputStream) {
-        JsonParser parser = Json.createParser(inputStream);
-        parser.next();
-        return readObject(clazz, parser);
-    }
-
-    private static <T> T readObject(Class<T> clazz, JsonParser parser) {
-        try {
-            T result = clazz.newInstance();
-            List<Object> array = null;
-            Field field = null;
-            PARSER_LOOP:
-            while (parser.hasNext()) {
-                JsonParser.Event event = parser.next();
-                switch (event) {
-                    case KEY_NAME:
-                        String key = parser.getString();
-                        try {
-                            field = clazz.getDeclaredField(key);
-                            field.setAccessible(true);
-                        } catch (Exception ex) {
-                            // ignore
-                        }
-                        break;
-                    case VALUE_FALSE:
-                        if (field != null) {
-                            field.set(result, false);
-                            field = null;
-                        }
-                        break;
-                    case VALUE_TRUE:
-                        if (field != null) {
-                            field.set(result, true);
-                            field = null;
-                        }
-                        break;
-                    case VALUE_NUMBER:
-                        if (field != null) {
-                            if (field.getType().getName().contains("Long")) {
-                                Object value = parser.getLong();
-                                field.set(result, value);
-                            } else {
-                                Object value = (parser.isIntegralNumber() ? parser.getInt() : parser.getBigDecimal());
-                                field.set(result, value);
-                            }
-                            field = null;
-                        }
-                        break;
-                    case VALUE_STRING:
-                        if (array != null) {
-                            array.add(parser.getString());
-                        } else if (field != null) {
-                            if (field.getType().isAssignableFrom(String.class)) {
-                                field.set(result, parser.getString());
-                            } else if (field.getType().isAssignableFrom(Date.class)) {
-                                field.set(result, new SimpleDateFormat(ISO8601_FORMAT).parse(parser.getString()));
-                            } else if (field.getType().isAssignableFrom(URI.class)) {
-                                field.set(result, URI.create(parser.getString()));
-                            }
-                            field = null;
-                        }
-                        break;
-                    case VALUE_NULL:
-                        field = null;
-                        break;
-                    case START_ARRAY:
-                        array = new ArrayList<>();
-                        break;
-                    case END_ARRAY:
-                        if (field != null) {
-                            // TODO - don't hardcode class name
-                            Class<?> type = field.getType();
-                            String name = type.getName();
-                            if (name.contains("KmsKey")) {
-                                field.set(result, array.toArray(new KmsKey[array.size()]));
-                            } else {
-                                field.set(result, array.toArray(new Object[array.size()]));
-                            }
-                            field = null;
-                        }
-                        array = null;
-                        break;
-                    case END_OBJECT:
-                        break PARSER_LOOP;
-                    case START_OBJECT:
-                        if (field != null) {
-                            // TODO - don't hardcode class name
-                            Class<?> aClass = getSdkClass(field);
-                            Object value = readObject(aClass, parser);
-                            if (array != null) {
-                                array.add(value);
-                            } else {
-                                field.set(result, value);
-                                field = null;
-                            }
-                        }
-                        break;
-                    default:
-                        throw new SparkException("bad json event: " + event);
-                }
-            }
-            return result;
-        } catch (SparkException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new SparkException(ex);
-        }
-    }
-
-    private static Class<?> getSdkClass(Field field) {
-        Class<?> type = field.getType();
-        String name = type.getName();
-        Class<?> aClass;
-        if (name.contains("KmsKey")) {
-            aClass = KmsKey.class;
-        } else if (name.contains("KmsJwk")) {
-            aClass = KmsJwk.class;
-        } else {
-            throw new SparkException("Unsupported class");
-        }
-        return aClass;
-    }
-
     public <T> T post(Class<T> clazz, String path, T body) {
-        return readJson(clazz, request("POST", path, null, body));
+        return jsonMapper.readJson(clazz, request("POST", path, null, body));
     }
 
     public <T> T post(Class<T> clazz, URL url, T body) {
-        return readJson(clazz, request(url, "POST", body).inputStream);
-    }
-
-    // TODO
-    public <U, V> V posts(Class<V> clazz, String path, List<String[]> params, U body) {
-        return readJson(clazz, request("POST", path, params, body));
+        return jsonMapper.readJson(clazz, request(url, "POST", body).inputStream);
     }
 
     public <U, V> V posts(Class<V> clazz, String path, U body) {
         return posts(clazz, path, null, body);
     }
 
+    public <U, V> V posts(Class<V> clazz, String path, List<String[]> params, U body) {
+        return jsonMapper.readJson(clazz, request("POST", path, params, body));
+    }
+
     public <T> T put(Class<T> clazz, String path, T body) {
-        return readJson(clazz, request("PUT", path, null, body));
+        return jsonMapper.readJson(clazz, request("PUT", path, null, body));
     }
 
     public <T> T put(Class<T> clazz, URL url, T body) {
-        return readJson(clazz, request(url, "PUT", body).inputStream);
+        return jsonMapper.readJson(clazz, request(url, "PUT", body).inputStream);
     }
 
     public <T> T get(Class<T> clazz, String path, List<String[]> params) {
-        return readJson(clazz, request("GET", path, params, null));
+        return jsonMapper.readJson(clazz, request("GET", path, params, null));
     }
 
     public <T> T get(Class<T> clazz, URL url) {
-        return readJson(clazz, request(url, "GET", null).inputStream);
+        return jsonMapper.readJson(clazz, request(url, "GET", null).inputStream);
     }
 
     public <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
@@ -250,7 +110,7 @@ public class Client {
             for (JsonParser.Event event = parser.next();
                  event == JsonParser.Event.START_OBJECT;
                  event = parser.next()) {
-                result.add(readObject(clazz, parser));
+                result.add(jsonMapper.readObject(clazz, parser));
             }
             return result;
         };
@@ -289,6 +149,27 @@ public class Client {
         return accessToken;
     }
 
+    public <T> InputStream request(String method, String path, List<String[]> params, T body) {
+        URL url = getUrl(path, params);
+        return request(url, method, body).inputStream;
+    }
+
+    private ErrorMessage parseErrorMessage(InputStream errorStream) {
+        try {
+            if (errorStream == null) {
+                return null;
+            }
+            JsonReader reader = Json.createReader(errorStream);
+            JsonObject jsonObject = reader.readObject();
+            ErrorMessage result = new ErrorMessage();
+            result.setMessage(jsonObject.getString("message"));
+            result.setTrackingId(jsonObject.getString("trackingId"));
+            return result;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     private boolean authenticate() {
         if (clientId != null && clientSecret != null) {
             if (authCode != null && redirectUri != null) {
@@ -301,7 +182,7 @@ public class Client {
                 body.setCode(authCode);
                 body.setRedirect_uri(redirectUri);
                 Response response = doRequest(url, "POST", body);
-                AccessTokenResponse responseBody = readJson(AccessTokenResponse.class, response.inputStream);
+                AccessTokenResponse responseBody = jsonMapper.readJson(AccessTokenResponse.class, response.inputStream);
                 accessToken = responseBody.getAccess_token();
                 refreshToken = responseBody.getRefresh_token();
                 authCode = null;
@@ -315,7 +196,7 @@ public class Client {
                 body.setRefresh_token(refreshToken);
                 body.setGrant_type("refresh_token");
                 Response response = doRequest(url, "POST", body);
-                AccessTokenResponse responseBody = readJson(AccessTokenResponse.class, response.inputStream);
+                AccessTokenResponse responseBody = jsonMapper.readJson(AccessTokenResponse.class, response.inputStream);
                 accessToken = responseBody.getAccess_token();
                 return true;
             }
@@ -401,7 +282,6 @@ public class Client {
             } catch (IOException ex) {
                 // ignore
             }
-
 
             Function<InputStream, Object> processor = stream -> {
                 ErrorMessage errorMessage = parseErrorMessage(stream);
@@ -490,7 +370,7 @@ public class Client {
                 } else if (type == BigDecimal.class) {
                     jsonGenerator.write(field.getName(), (BigDecimal) value);
                 } else if (type == Date.class) {
-                    jsonGenerator.write(field.getName(), new SimpleDateFormat(ISO8601_FORMAT).format((Date) value));
+                    jsonGenerator.write(field.getName(), new SimpleDateFormat(Properties.ISO8601_FORMAT).format((Date) value));
                 } else if (type == URI.class) {
                     jsonGenerator.write(field.getName(), value.toString());
                 } else if (type == Boolean.class) {
@@ -584,7 +464,7 @@ public class Client {
                             return hasNext();
                         }
                     }
-                    current = readObject(clazz, parser);
+                    current = jsonMapper.readObject(clazz, parser);
                 }
                 return current != null;
             } catch (IOException ex) {
@@ -604,10 +484,5 @@ public class Client {
                 current = null;
             }
         }
-    }
-
-    <T> InputStream request(String method, String path, List<String[]> params, T body) {
-        URL url = getUrl(path, params);
-        return request(url, method, body).inputStream;
     }
 }
