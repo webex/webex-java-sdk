@@ -5,24 +5,34 @@ import java.util.logging.Logger;
 
 public abstract class Spark {
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public abstract RequestBuilder<Room> rooms();
+
     public abstract RequestBuilder<Membership> memberships();
+
     public abstract RequestBuilder<Message> messages();
+
     public abstract RequestBuilder<Person> people();
+
     public abstract RequestBuilder<Team> teams();
+
     public abstract RequestBuilder<TeamMembership> teamMemberships();
+
     public abstract RequestBuilder<Webhook> webhooks();
 
     public static class Builder {
-        private URI redirectUri;
-        private String authCode;
         private String accessToken;
-        private String refreshToken;
+        private String authCode;
+        private URI baseUrl = URI.create("https://api.ciscospark.com/v1");
         private String clientId;
         private String clientSecret;
         private Boolean enableEndToEndEncryption;
         private Logger logger;
-        private URI baseUrl = URI.create("https://api.ciscospark.com/v1");
+        private URI redirectUri;
+        private String refreshToken;
 
         public Builder baseUrl(URI uri) {
             this.baseUrl = uri;
@@ -77,9 +87,5 @@ public abstract class Spark {
                 return new SparkImpl(client);
             }
         }
-    }
-
-    public static Builder builder() {
-        return new Builder();
     }
 }

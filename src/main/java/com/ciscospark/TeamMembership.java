@@ -3,13 +3,13 @@ package com.ciscospark;
 import java.util.Date;
 
 public class TeamMembership {
+    private Date created;
     private String id;
-    private String teamId;
-    private String personId;
+    private Boolean isModerator;
     private String personDisplayName;
     private String personEmail;
-    private Boolean isModerator;
-    private Date created;
+    private String personId;
+    private String teamId;
 
     public String getId() {
         return id;

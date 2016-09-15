@@ -1,13 +1,13 @@
 package com.ciscospark;
 
 public class Message {
-    private String id;
-    private String roomId;
-    private String personId;
-    private String personEmail;
-    private String text;
     private String file;
     private String[] files;
+    private String id;
+    private String personEmail;
+    private String personId;
+    private String roomId;
+    private String text;
 
     public String getId() {
         return id;

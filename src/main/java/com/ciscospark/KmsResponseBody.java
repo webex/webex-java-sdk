@@ -2,10 +2,10 @@ package com.ciscospark;
 
 public class KmsResponseBody {
 
-    private Integer status;
-    private String requestId;
-    private String reason;
     private KmsKey[] keys;
+    private String reason;
+    private String requestId;
+    private Integer status;
 
     public String getReason() {
         return reason;

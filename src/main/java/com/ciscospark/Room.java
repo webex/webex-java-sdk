@@ -3,15 +3,14 @@ package com.ciscospark;
 import java.net.URI;
 
 public class Room {
-    private String id;
-    private String title;
-    private String teamId;
-
+    private String encryptionKeyConvTitleUrl;
     // TODO
     private String encryptionKeyUrl;
-    private String encryptionKeyConvTitleUrl;
+    private String id;
     private String kmsMessage;
     private URI kmsResourceObjectUrl;
+    private String teamId;
+    private String title;
 
     public String getTitle() {
         return title;
@@ -29,12 +28,12 @@ public class Room {
         this.id = id;
     }
 
-    public void setTeamId(String teamId) {
-        this.teamId = teamId;
-    }
-
     public String getTeamId() {
         return teamId;
+    }
+
+    public void setTeamId(String teamId) {
+        this.teamId = teamId;
     }
 
     public String getEncryptionKeyConvTitleUrl() {

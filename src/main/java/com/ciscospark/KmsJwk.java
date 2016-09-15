@@ -1,19 +1,7 @@
 package com.ciscospark;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.DateSerializer;
-import com.nimbusds.jose.jwk.JWK;
-
-import java.text.SimpleDateFormat;
-
 public class KmsJwk {
 
-    private static final String RFC3339_DATE_TIME = "rfc3339-date-time";
-    private static final SimpleDateFormat rfc3339DateTimeFormat = new SimpleDateFormat("yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'");
-    private static ObjectMapper mapper;
     private String alg;
     private String crv;
     private String d;
@@ -33,18 +21,6 @@ public class KmsJwk {
     private String y;
 
     public KmsJwk() {
-    }
-
-    private static ObjectMapper getMapper() {
-        if (null == mapper) {
-            mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-            SimpleModule dateModule = new SimpleModule(RFC3339_DATE_TIME);
-            dateModule.addSerializer(new DateSerializer(Boolean.valueOf(false), rfc3339DateTimeFormat));
-            mapper.registerModule(dateModule);
-        }
-        return mapper;
     }
 
     public String getAlg() {
@@ -181,9 +157,5 @@ public class KmsJwk {
 
     public void setK(String k) {
         this.k = k;
-    }
-
-    public JWK toJWK() throws Exception {
-        return JWK.parse(getMapper().writeValueAsString(this));
     }
 }

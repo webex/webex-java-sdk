@@ -3,12 +3,12 @@ package com.ciscospark;
 import java.net.URI;
 
 public class AccessTokenRequest {
-    private String grant_type;
     private String client_id;
     private String client_secret;
     private String code;
-    private String refresh_token;
+    private String grant_type;
     private URI redirect_uri;
+    private String refresh_token;
 
     public String getClient_id() {
         return client_id;

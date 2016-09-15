@@ -8,9 +8,9 @@ public class KeyManager {
 
     private final static Integer KMS_KEY_REQUEST_COUNT = 10;
     private final Client client;
-    private KmsInfo publicKey;
     private OctetSequenceKey ecdheKey;
     private List<KmsKey> kmsKeyList = new ArrayList<>();
+    private KmsInfo publicKey;
 
     // TODO - store the keys here, if run out, request more
 

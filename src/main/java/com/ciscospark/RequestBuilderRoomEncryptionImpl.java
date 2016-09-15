@@ -1,10 +1,8 @@
 package com.ciscospark;
 
-import com.cisco.wx2.sdk.kms.KmsRequest;
-import com.cisco.wx2.sdk.kms.KmsRequestBody;
-import com.cisco.wx2.sdk.kms.KmsRequestFactory;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.DirectEncrypter;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.util.Base64URL;
 
 import java.net.URI;
@@ -52,10 +50,8 @@ public class RequestBuilderRoomEncryptionImpl<T> extends RequestBuilderImpl<T> {
                 .build();
         String requestId = UUID.randomUUID().toString();
 
-        KmsRequestFactory kmsRequestFactory = KmsRequestFactory.getInstance();
-        KmsRequest requestClientSide = kmsRequestFactory.newCreateResourceRequest(kmsRequestBodyClient, requestId, auths, keyUriList);
-        String requestBlob = requestClientSide.asEncryptedBlob(octetSequenceKey);
-//        String requestBlob = apiHelper.constructEncryptedBlobForKeyResourceBinding(kmsRequestBodyClient, requestId, keyUriList, auths, ecdheKey);
+        KmsRequest kmsRequest = KmsRequestFactory.newCreateResourceRequest(kmsRequestBodyClient, requestId, auths, keyUriList);
+        String requestBlob = kmsRequest.asEncryptedBlob(octetSequenceKey);
 
         // TODO - not safe
         final String title = ((Room) body).getTitle();
@@ -82,21 +78,19 @@ public class RequestBuilderRoomEncryptionImpl<T> extends RequestBuilderImpl<T> {
 //        }
     }
 
-    public String encryptMessage(KmsKey kmsKey, String cleartext) {
-        String ciphertext = null;
-
+    private String encryptMessage(KmsKey kmsKey, String cleartext) {
+        String encryptedText = null;
         try {
-            com.nimbusds.jose.jwk.OctetSequenceKey e = (com.nimbusds.jose.jwk.OctetSequenceKey)kmsKey.getJwk().toJWK();
+            com.nimbusds.jose.jwk.OctetSequenceKey e = (com.nimbusds.jose.jwk.OctetSequenceKey) JWK.parse(KmsApi.convertToJson(kmsKey.getJwk()));
             JWEHeader header = (new JWEHeader.Builder(JWEAlgorithm.DIR, EncryptionMethod.A256GCM)).keyID(e.getKeyID()).build();
             JWEObject jwe = new JWEObject(header, new Payload(cleartext));
             DirectEncrypter encrypter = new DirectEncrypter(e.toByteArray());
             jwe.encrypt(encrypter);
-            ciphertext = jwe.serialize();
-        } catch (Exception var8) {
-//            log.info("KmsProxyHandlerService.encryptMessage - exception encountered", var8);
+            encryptedText = jwe.serialize();
+        } catch (Exception e) {
         }
-
-        return ciphertext;
+        return encryptedText;
     }
+
 
 }

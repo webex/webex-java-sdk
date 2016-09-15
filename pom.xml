@@ -66,15 +66,5 @@
             <artifactId>nimbus-jose-jwt</artifactId>
             <version>${nimbusds.version}</version>
         </dependency>
-
-        <!--TO_BE_REMOVED-->
-        <dependency>
-            <groupId>com.cisco.wx2</groupId>
-            <artifactId>cloud-apps-sdk-kms</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <!--TO_BE_REMOVED-->
-
-
     </dependencies>
 </project>

@@ -4,13 +4,13 @@ import java.net.URI;
 import java.util.Date;
 
 public class Webhook {
+    private Date created;
+    private String event;
+    private String filter;
     private String id;
     private String name;
     private String resource;
-    private String event;
-    private String filter;
     private URI targetUrl;
-    private Date created;
 
     public String getId() {
         return id;

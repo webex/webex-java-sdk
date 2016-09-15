@@ -12,15 +12,14 @@ import java.util.Set;
 
 public class OctetSequenceKey {
 
-    // TODO - not use KMS SDK
-    private String k;
-    private KeyUse use;
-    private Set<KeyOperation> ops;
     private Algorithm alg;
+    private String k;
     private String kid;
-    private URI x5u;
-    private Base64URL x5t;
+    private Set<KeyOperation> ops;
+    private KeyUse use;
     private List<Base64> x5c;
+    private Base64URL x5t;
+    private URI x5u;
 
     public Algorithm getAlg() {
         return alg;

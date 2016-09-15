@@ -2,11 +2,11 @@ package com.ciscospark;
 
 public class Membership {
     private String id;
-    private String roomId;
-    private String personId;
-    private String personEmail;
     private Boolean isModerator;
     private Boolean isMonitor;
+    private String personEmail;
+    private String personId;
+    private String roomId;
 
     public String getId() {
         return id;

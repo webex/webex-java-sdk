@@ -6,15 +6,15 @@ import java.util.UUID;
 
 public class KmsKey {
 
-    private URI uri;
-    private KmsJwk jwk;
-    private String userId;
-    private String orgId;
+    private Date bindDate;
     private String clientId;
     private Date createDate;
     private Date expirationDate;
+    private KmsJwk jwk;
+    private String orgId;
     private URI resourceUri;
-    private Date bindDate;
+    private URI uri;
+    private String userId;
 
     public KmsJwk getJwk() {
         return jwk;

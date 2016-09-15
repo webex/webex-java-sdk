@@ -23,14 +23,13 @@ public class Client {
 
     private static final String TRACKING_ID = "TrackingID";
     private static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
-
+    private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
     private final URI baseUri;
     private final URI redirectUri;
     private final String clientId;
     private final String clientSecret;
     private final Logger logger;
     private final Boolean enableEndToEndEncryption;
-
     private String accessToken;
     private String authCode;
     private String refreshToken;
@@ -45,6 +44,145 @@ public class Client {
         this.clientSecret = clientSecret;
         this.logger = logger;
         this.enableEndToEndEncryption = enableEndToEndEncryption;
+    }
+
+    private static ErrorMessage parseErrorMessage(InputStream errorStream) {
+        try {
+            if (errorStream == null) {
+                return null;
+            }
+            JsonReader reader = Json.createReader(errorStream);
+            JsonObject jsonObject = reader.readObject();
+            ErrorMessage result = new ErrorMessage();
+            result.setMessage(jsonObject.getString("message"));
+            result.setTrackingId(jsonObject.getString("trackingId"));
+            return result;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static <T> T readJson(Class<T> clazz, InputStream inputStream) {
+        JsonParser parser = Json.createParser(inputStream);
+        parser.next();
+        return readObject(clazz, parser);
+    }
+
+    private static <T> T readObject(Class<T> clazz, JsonParser parser) {
+        try {
+            T result = clazz.newInstance();
+            List<Object> array = null;
+            Field field = null;
+            PARSER_LOOP:
+            while (parser.hasNext()) {
+                JsonParser.Event event = parser.next();
+                switch (event) {
+                    case KEY_NAME:
+                        String key = parser.getString();
+                        try {
+                            field = clazz.getDeclaredField(key);
+                            field.setAccessible(true);
+                        } catch (Exception ex) {
+                            // ignore
+                        }
+                        break;
+                    case VALUE_FALSE:
+                        if (field != null) {
+                            field.set(result, false);
+                            field = null;
+                        }
+                        break;
+                    case VALUE_TRUE:
+                        if (field != null) {
+                            field.set(result, true);
+                            field = null;
+                        }
+                        break;
+                    case VALUE_NUMBER:
+                        if (field != null) {
+                            if (field.getType().getName().contains("Long")) {
+                                Object value = parser.getLong();
+                                field.set(result, value);
+                            } else {
+                                Object value = (parser.isIntegralNumber() ? parser.getInt() : parser.getBigDecimal());
+                                field.set(result, value);
+                            }
+                            field = null;
+                        }
+                        break;
+                    case VALUE_STRING:
+                        if (array != null) {
+                            array.add(parser.getString());
+                        } else if (field != null) {
+                            if (field.getType().isAssignableFrom(String.class)) {
+                                field.set(result, parser.getString());
+                            } else if (field.getType().isAssignableFrom(Date.class)) {
+                                field.set(result, new SimpleDateFormat(ISO8601_FORMAT).parse(parser.getString()));
+                            } else if (field.getType().isAssignableFrom(URI.class)) {
+                                field.set(result, URI.create(parser.getString()));
+                            }
+                            field = null;
+                        }
+                        break;
+                    case VALUE_NULL:
+                        field = null;
+                        break;
+                    case START_ARRAY:
+                        array = new ArrayList<>();
+                        break;
+                    case END_ARRAY:
+                        if (field != null) {
+                            // TODO - don't hardcode class name
+                            Class<?> type = field.getType();
+                            String name = type.getName();
+                            if (name.contains("KmsKey")) {
+                                field.set(result, array.toArray(new KmsKey[array.size()]));
+                            } else {
+                                field.set(result, array.toArray(new Object[array.size()]));
+                            }
+                            field = null;
+                        }
+                        array = null;
+                        break;
+                    case END_OBJECT:
+                        break PARSER_LOOP;
+                    case START_OBJECT:
+                        if (field != null) {
+                            // TODO - don't hardcode class name
+                            Class<?> aClass = getSdkClass(field);
+                            Object value = readObject(aClass, parser);
+                            if (array != null) {
+                                array.add(value);
+                            } else {
+                                field.set(result, value);
+                                field = null;
+                            }
+                        }
+                        break;
+                    default:
+                        throw new SparkException("bad json event: " + event);
+                }
+            }
+            return result;
+        } catch (SparkException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new SparkException(ex);
+        }
+    }
+
+    private static Class<?> getSdkClass(Field field) {
+        Class<?> type = field.getType();
+        String name = type.getName();
+        Class<?> aClass;
+        if (name.contains("KmsKey")) {
+            aClass = KmsKey.class;
+        } else if (name.contains("KmsJwk")) {
+            aClass = KmsJwk.class;
+        } else {
+            throw new SparkException("Unsupported class");
+        }
+        return aClass;
     }
 
     public <T> T post(Class<T> clazz, String path, T body) {
@@ -127,11 +265,6 @@ public class Client {
     public <T> LinkedResponse<List<T>> paginate(Class<T> clazz, String paths, List<String[]> params) {
         URL url = getUrl(paths, params);
         return paginate(clazz, url);
-    }
-
-    <T> InputStream request(String method, String path, List<String[]> params, T body) {
-        URL url = getUrl(path, params);
-        return request(url, method, body).inputStream;
     }
 
     public <T> Response request(URL url, String method, T body) {
@@ -290,22 +423,6 @@ public class Client {
         }
     }
 
-    private static ErrorMessage parseErrorMessage(InputStream errorStream) {
-        try {
-            if (errorStream == null) {
-                return null;
-            }
-            JsonReader reader = Json.createReader(errorStream);
-            JsonObject jsonObject = reader.readObject();
-            ErrorMessage result = new ErrorMessage();
-            result.setMessage(jsonObject.getString("message"));
-            result.setTrackingId(jsonObject.getString("trackingId"));
-            return result;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
     private HttpURLConnection getConnection(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestProperty("Content-type", "application/json");
@@ -322,129 +439,6 @@ public class Client {
         }
         connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
         return connection;
-    }
-
-    private static <T> T readJson(Class<T> clazz, InputStream inputStream) {
-        JsonParser parser = Json.createParser(inputStream);
-        parser.next();
-        return readObject(clazz, parser);
-    }
-
-    private static <T> T readObject(Class<T> clazz, JsonParser parser) {
-        try {
-            T result = clazz.newInstance();
-            List<Object> array = null;
-            Field field = null;
-            PARSER_LOOP:
-            while (parser.hasNext()) {
-                JsonParser.Event event = parser.next();
-                switch (event) {
-                    case KEY_NAME:
-                        String key = parser.getString();
-                        try {
-                            field = clazz.getDeclaredField(key);
-                            field.setAccessible(true);
-                        } catch (Exception ex) {
-                            // ignore
-                        }
-                        break;
-                    case VALUE_FALSE:
-                        if (field != null) {
-                            field.set(result, false);
-                            field = null;
-                        }
-                        break;
-                    case VALUE_TRUE:
-                        if (field != null) {
-                            field.set(result, true);
-                            field = null;
-                        }
-                        break;
-                    case VALUE_NUMBER:
-                        if (field != null) {
-                            if (field.getType().getName().contains("Long")) {
-                                Object value = parser.getLong();
-                                field.set(result, value);
-                            } else {
-                                Object value = (parser.isIntegralNumber() ? parser.getInt() : parser.getBigDecimal());
-                                field.set(result, value);
-                            }
-                            field = null;
-                        }
-                        break;
-                    case VALUE_STRING:
-                        if (array != null) {
-                            array.add(parser.getString());
-                        } else if (field != null) {
-                            if (field.getType().isAssignableFrom(String.class)) {
-                                field.set(result, parser.getString());
-                            } else if (field.getType().isAssignableFrom(Date.class)) {
-                                field.set(result, new SimpleDateFormat(ISO8601_FORMAT).parse(parser.getString()));
-                            } else if (field.getType().isAssignableFrom(URI.class)) {
-                                field.set(result, URI.create(parser.getString()));
-                            }
-                            field = null;
-                        }
-                        break;
-                    case VALUE_NULL:
-                        field = null;
-                        break;
-                    case START_ARRAY:
-                        array = new ArrayList<>();
-                        break;
-                    case END_ARRAY:
-                        if (field != null) {
-                            // TODO - don't hardcode class name
-                            Class<?> type = field.getType();
-                            String name = type.getName();
-                            if (name.contains("KmsKey")) {
-                                field.set(result, array.toArray(new KmsKey[array.size()]));
-                            } else {
-                                field.set(result, array.toArray(new Object[array.size()]));
-                            }
-                            field = null;
-                        }
-                        array = null;
-                        break;
-                    case END_OBJECT:
-                        break PARSER_LOOP;
-                    case START_OBJECT:
-                        if (field != null) {
-                            // TODO - don't hardcode class name
-                            Class<?> aClass = getSdkClass(field);
-                            Object value = readObject(aClass, parser);
-                            if (array != null) {
-                                array.add(value);
-                            } else {
-                                field.set(result, value);
-                                field = null;
-                            }
-                        }
-                        break;
-                    default:
-                        throw new SparkException("bad json event: " + event);
-                }
-            }
-            return result;
-        } catch (SparkException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new SparkException(ex);
-        }
-    }
-
-    private static Class<?> getSdkClass(Field field) {
-        Class<?> type = field.getType();
-        String name = type.getName();
-        Class<?> aClass;
-        if (name.contains("KmsKey")) {
-            aClass = KmsKey.class;
-        } else if (name.contains("KmsJwk")) {
-            aClass = KmsJwk.class;
-        } else {
-            throw new SparkException("Unsupported class");
-        }
-        return aClass;
     }
 
     private URL getUrl(String path, List<String[]> params) {
@@ -517,12 +511,48 @@ public class Client {
         jsonGenerator.close();
     }
 
+    private void scrollToItemsArray(JsonParser parser) {
+        JsonParser.Event event;
+        while (parser.hasNext()) {
+            event = parser.next();
+            if (event == JsonParser.Event.KEY_NAME && parser.getString().equals("items")) {
+                break;
+            }
+        }
+
+        event = parser.next();
+        if (event != JsonParser.Event.START_ARRAY) {
+            throw new SparkException("bad json");
+        }
+    }
+
+    private HttpURLConnection getLink(HttpURLConnection connection, String rel) throws IOException {
+        String link = connection.getHeaderField("Link");
+        return parseLinkHeader(link, rel);
+    }
+
+    private HttpURLConnection parseLinkHeader(String link, String desiredRel) throws IOException {
+        HttpURLConnection result = null;
+        if (link != null && !"".equals(link)) {
+            Matcher matcher = linkPattern.matcher(link);
+            while (matcher.find()) {
+                String url = matcher.group(1);
+                String foundRel = matcher.group(2);
+                if (desiredRel.equals(foundRel)) {
+                    result = getConnection(new URL(url));
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
     public class PagingIterator<T> implements Iterator<T> {
         private final Class<T> clazz;
-        private URL url;
+        T current;
         private HttpURLConnection connection;
         private JsonParser parser;
-        T current;
+        private URL url;
 
         public PagingIterator(Class<T> clazz, URL url) {
             this.clazz = clazz;
@@ -576,41 +606,8 @@ public class Client {
         }
     }
 
-    private void scrollToItemsArray(JsonParser parser) {
-        JsonParser.Event event;
-        while (parser.hasNext()) {
-            event = parser.next();
-            if (event == JsonParser.Event.KEY_NAME && parser.getString().equals("items")) {
-                break;
-            }
-        }
-
-        event = parser.next();
-        if (event != JsonParser.Event.START_ARRAY) {
-            throw new SparkException("bad json");
-        }
-    }
-
-    private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
-
-    private HttpURLConnection getLink(HttpURLConnection connection, String rel) throws IOException {
-        String link = connection.getHeaderField("Link");
-        return parseLinkHeader(link, rel);
-    }
-
-    private HttpURLConnection parseLinkHeader(String link, String desiredRel) throws IOException {
-        HttpURLConnection result = null;
-        if (link != null && !"".equals(link)) {
-            Matcher matcher = linkPattern.matcher(link);
-            while (matcher.find()) {
-                String url = matcher.group(1);
-                String foundRel = matcher.group(2);
-                if (desiredRel.equals(foundRel)) {
-                    result = getConnection(new URL(url));
-                    break;
-                }
-            }
-        }
-        return result;
+    <T> InputStream request(String method, String path, List<String[]> params, T body) {
+        URL url = getUrl(path, params);
+        return request(url, method, body).inputStream;
     }
 }

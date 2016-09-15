@@ -7,11 +7,11 @@ import java.util.List;
 
 public class RequestBuilderImpl<T> implements RequestBuilder<T> {
 
-    protected URL url;
     protected final Client client;
     protected final StringBuilder pathBuilder;
     protected final List<String[]> params;
     protected final Class<T> clazz;
+    protected URL url;
 
     public RequestBuilderImpl(Class<T> clazz, Client client, String path) {
         this(clazz, client, new StringBuilder(path), new ArrayList<>());
@@ -26,7 +26,7 @@ public class RequestBuilderImpl<T> implements RequestBuilder<T> {
 
     @Override
     public RequestBuilder<T> queryParam(String key, String value) {
-        params.add(new String[] { key, value });
+        params.add(new String[]{key, value});
         return this;
     }
 
