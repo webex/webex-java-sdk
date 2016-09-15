@@ -425,7 +425,7 @@ public class Client {
 
     private HttpURLConnection getConnection(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestProperty("Content-type", "application/json");
+        connection.setRequestProperty("Content-Type", "application/json");
         if (accessToken != null) {
             String authorization = accessToken;
             if (!authorization.startsWith("Bearer ")) {
@@ -433,9 +433,9 @@ public class Client {
             }
             connection.setRequestProperty("Authorization", authorization);
         }
-        // TODO - I don't like this, should pass in the header map as a whole
+        // TODO - Should pass in the header map as a whole
         if (enableEndToEndEncryption) {
-            connection.setRequestProperty("X-Spark-Content-Type", "application/json+spark");
+            connection.setRequestProperty("Content-Type", "application/json;ciscospark+v1");
         }
         connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
         return connection;
