@@ -3,14 +3,14 @@ package com.ciscospark;
 import java.net.URI;
 
 public class Room {
-    private String encryptionKeyConvTitleUrl;
-    // TODO
-    private String encryptionKeyUrl;
+
     private String id;
-    private String kmsMessage;
-    private URI kmsResourceObjectUrl;
-    private String teamId;
     private String title;
+    private String teamId;
+    private String encryptionKeyUrl;
+    private String titleEncryptionKeyUrl;
+    private String keyManagementMessage;
+    private URI keyManagementResourceObjectUrl;
 
     public String getTitle() {
         return title;
@@ -36,12 +36,12 @@ public class Room {
         this.teamId = teamId;
     }
 
-    public String getEncryptionKeyConvTitleUrl() {
-        return encryptionKeyConvTitleUrl;
+    public String getTitleEncryptionKeyUrl() {
+        return titleEncryptionKeyUrl;
     }
 
-    public void setEncryptionKeyConvTitleUrl(String encryptionKeyConvTitleUrl) {
-        this.encryptionKeyConvTitleUrl = encryptionKeyConvTitleUrl;
+    public void setTitleEncryptionKeyUrl(String titleEncryptionKeyUrl) {
+        this.titleEncryptionKeyUrl = titleEncryptionKeyUrl;
     }
 
     public String getEncryptionKeyUrl() {
@@ -52,19 +52,19 @@ public class Room {
         this.encryptionKeyUrl = encryptionKeyUrl;
     }
 
-    public String getKmsMessage() {
-        return kmsMessage;
+    public String getKeyManagementMessage() {
+        return keyManagementMessage;
     }
 
-    public void setKmsMessage(String kmsMessage) {
-        this.kmsMessage = kmsMessage;
+    public void setKeyManagementMessage(String keyManagementMessage) {
+        this.keyManagementMessage = keyManagementMessage;
     }
 
-    public URI getKmsResourceObjectUrl() {
-        return kmsResourceObjectUrl;
+    public URI getKeyManagementResourceObjectUrl() {
+        return keyManagementResourceObjectUrl;
     }
 
-    public void setKmsResourceObjectUrl(URI kmsResourceObjectUrl) {
-        this.kmsResourceObjectUrl = kmsResourceObjectUrl;
+    public void setKeyManagementResourceObjectUrl(URI keyManagementResourceObjectUrl) {
+        this.keyManagementResourceObjectUrl = keyManagementResourceObjectUrl;
     }
 }

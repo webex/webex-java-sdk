@@ -57,8 +57,8 @@ public class RequestBuilderRoomEncryptionImpl<T> extends RequestBuilderImpl<T> {
         String encryptedTitle = convTitleKey.encryptMessage(title);
         hydraRoomRequest.setTitle(encryptedTitle);
         hydraRoomRequest.setEncryptionKeyUrl(convKey.getUri().toString());
-        hydraRoomRequest.setEncryptionKeyConvTitleUrl(convTitleKey.getUri().toString());
-        hydraRoomRequest.setKmsMessage(requestBlob);
+        hydraRoomRequest.setTitleEncryptionKeyUrl(convTitleKey.getUri().toString());
+        hydraRoomRequest.setKeyManagementMessage(requestBlob);
 
         // TODO - handle response and response header
         return client.post(clazz, pathBuilder.toString(), body);
