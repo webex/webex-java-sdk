@@ -6,13 +6,13 @@ import java.util.Date;
  * Copyright (c) 2016 Cisco Systems, Inc. See LICENSE file.
  */
 public class TeamMembership {
+    private Date created;
     private String id;
-    private String teamId;
-    private String personId;
+    private Boolean isModerator;
     private String personDisplayName;
     private String personEmail;
-    private Boolean isModerator;
-    private Date created;
+    private String personId;
+    private String teamId;
 
     public String getId() {
         return id;

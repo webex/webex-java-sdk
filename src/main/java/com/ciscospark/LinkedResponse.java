@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  */
 public class LinkedResponse<T> {
     private final Client client;
-    private Client.Response response;
+    private Response response;
     private final BodyCreator<T> bodyCreator;
     private final Map<String,URL> urls = new LinkedHashMap<String, URL>();
 

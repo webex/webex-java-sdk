@@ -7,26 +7,35 @@ import java.util.logging.Logger;
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public abstract class Spark {
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public abstract RequestBuilder<Room> rooms();
+
     public abstract RequestBuilder<Membership> memberships();
+
     public abstract RequestBuilder<Message> messages();
+
     public abstract RequestBuilder<Person> people();
+
     public abstract RequestBuilder<Team> teams();
+
     public abstract RequestBuilder<TeamMembership> teamMemberships();
+
     public abstract RequestBuilder<Webhook> webhooks();
 
-    /**
-     * Created on 11/24/15.
-     */
     public static class Builder {
-        private URI redirectUri;
-        private String authCode;
         private String accessToken;
-        private String refreshToken;
+        private String authCode;
+        private URI baseUrl = URI.create("https://api.ciscospark.com/v1");
         private String clientId;
         private String clientSecret;
+        private Boolean enableEndToEndEncryption;
         private Logger logger;
-        private URI baseUrl = URI.create("https://api.ciscospark.com/v1");
+        private URI redirectUri;
+        private String refreshToken;
 
         public Builder baseUrl(URI uri) {
             this.baseUrl = uri;
@@ -68,12 +77,18 @@ public abstract class Spark {
             return this;
         }
 
-        public Spark build() {
-            return new SparkImpl(new Client(baseUrl, authCode, redirectUri, accessToken, refreshToken, clientId, clientSecret, logger));
+        public Builder enableEndToEndEncryption(Boolean enableEndToEndEncryption) {
+            this.enableEndToEndEncryption = enableEndToEndEncryption;
+            return this;
         }
-    }
 
-    public static Builder builder() {
-        return new Builder();
+        public Spark build() {
+            Client client = new Client(baseUrl, authCode, redirectUri, accessToken, refreshToken, clientId, clientSecret, logger, enableEndToEndEncryption);
+            if (enableEndToEndEncryption) {
+                return new SparkEncryptionImpl(client);
+            } else {
+                return new SparkImpl(client);
+            }
+        }
     }
 }

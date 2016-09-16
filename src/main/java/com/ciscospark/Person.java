@@ -4,9 +4,11 @@ package com.ciscospark;
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public class Person {
-    private String id;
     private String displayName;
     private String[] emails;
+    private String[] entitlements;
+    private String id;
+    private String[] roles;
 
     public String getId() {
         return id;

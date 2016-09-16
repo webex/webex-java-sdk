@@ -2,14 +2,20 @@
 <!--
  Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ciscospark</groupId>
     <artifactId>ciscospark-client</artifactId>
     <version>1.0-SNAPSHOT</version>
+
+    <parent>
+        <groupId>com.cisco.wx2</groupId>
+        <artifactId>hydra</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
 
     <build>
         <plugins>
@@ -18,34 +24,51 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.3</version>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
         </plugins>
     </build>
 
+    <properties>
+        <json.version>1.0</json.version>
+        <glassfish.version>1.0.4</glassfish.version>
+        <testng.version>6.8.7</testng.version>
+        <nimbusds.version>4.18</nimbusds.version>
+        <mockito.version>1.9.5</mockito.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>javax.json</groupId>
             <artifactId>javax.json-api</artifactId>
-            <version>1.0</version>
-            <scope>provided</scope>
+            <version>${json.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>${nimbusds.version}</version>
         </dependency>
 
+        <!--Test-->
         <dependency>
             <groupId>org.glassfish</groupId>
             <artifactId>javax.json</artifactId>
-            <version>1.0.4</version>
-            <!--<scope>test</scope>-->
+            <version>${glassfish.version}</version>
+            <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>6.8.7</version>
+            <version>${testng.version}</version>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
