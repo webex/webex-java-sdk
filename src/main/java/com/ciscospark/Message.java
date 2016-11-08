@@ -2,7 +2,6 @@ package com.ciscospark;
 
 import java.net.URI;
 import java.util.Date;
-import java.util.List;
 
 /**
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
@@ -19,7 +18,7 @@ public class Message {
     private URI[] files;
     private String markdown;
     private String html;
-    private List<String> mentionedPeople;
+    private String[] mentionedPeople;
 
     public String getId() {
         return id;
@@ -109,11 +108,11 @@ public class Message {
         this.html = html;
     }
 
-    public List<String> getMentionedPeople() {
+    public String[] getMentionedPeople() {
         return mentionedPeople;
     }
 
-    public void setMentionedPeople(List<String> mentionedPeople) {
+    public void setMentionedPeople(String[] mentionedPeople) {
         this.mentionedPeople = mentionedPeople;
     }
 }
