@@ -28,7 +28,7 @@ class RequestBuilderImpl<T> implements RequestBuilder<T> {
 
     @Override
     public RequestBuilder<T> queryParam(String key, String value) {
-        params.add(new String[] { key, value });
+        params.add(new String[]{key, value});
         return this;
     }
 

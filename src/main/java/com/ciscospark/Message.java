@@ -8,9 +8,9 @@ import java.util.Date;
  */
 public class Message {
     private String id;
-    private String roomId;
-    private String personId;
     private String personEmail;
+    private String personId;
+    private String roomId;
     private String text;
     private String file;
     private String roomType;

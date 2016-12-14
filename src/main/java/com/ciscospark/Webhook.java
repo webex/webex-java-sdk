@@ -7,13 +7,13 @@ import java.util.Date;
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public class Webhook {
+    private Date created;
+    private String event;
+    private String filter;
     private String id;
     private String name;
     private String resource;
-    private String event;
-    private String filter;
     private URI targetUrl;
-    private Date created;
 
     public String getId() {
         return id;

@@ -1,17 +1,23 @@
 package com.ciscospark;
 
+import java.net.URI;
 import java.util.Date;
 
 /**
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public class Room {
+
     private String id;
     private String title;
     private String teamId;
     private Boolean isLocked;
     private Date created;
     private Date lastActivity;
+    private String encryptionKeyUrl;
+    private String titleEncryptionKeyUrl;
+    private String keyManagementMessage;
+    private URI keyManagementResourceObjectUrl;
 
     public String getTitle() {
         return title;
@@ -59,5 +65,37 @@ public class Room {
 
     public void setLastActivity(Date lastActivity) {
         this.lastActivity = lastActivity;
+    }
+
+    public String getTitleEncryptionKeyUrl() {
+        return titleEncryptionKeyUrl;
+    }
+
+    public void setTitleEncryptionKeyUrl(String titleEncryptionKeyUrl) {
+        this.titleEncryptionKeyUrl = titleEncryptionKeyUrl;
+    }
+
+    public String getEncryptionKeyUrl() {
+        return encryptionKeyUrl;
+    }
+
+    public void setEncryptionKeyUrl(String encryptionKeyUrl) {
+        this.encryptionKeyUrl = encryptionKeyUrl;
+    }
+
+    public String getKeyManagementMessage() {
+        return keyManagementMessage;
+    }
+
+    public void setKeyManagementMessage(String keyManagementMessage) {
+        this.keyManagementMessage = keyManagementMessage;
+    }
+
+    public URI getKeyManagementResourceObjectUrl() {
+        return keyManagementResourceObjectUrl;
+    }
+
+    public void setKeyManagementResourceObjectUrl(URI keyManagementResourceObjectUrl) {
+        this.keyManagementResourceObjectUrl = keyManagementResourceObjectUrl;
     }
 }

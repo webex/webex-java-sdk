@@ -4,9 +4,11 @@ package com.ciscospark;
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 public class Person {
-    private String id;
     private String displayName;
     private String[] emails;
+    private String[] entitlements;
+    private String id;
+    private String[] roles;
 
     public String getId() {
         return id;
@@ -30,5 +32,21 @@ public class Person {
 
     public void setEmails(String[] emails) {
         this.emails = emails;
+    }
+
+    public String[] getEntitlements() {
+        return entitlements;
+    }
+
+    public void setEntitlements(String[] entitlements) {
+        this.entitlements = entitlements;
+    }
+
+    public String[] getRoles() {
+        return roles;
+    }
+
+    public void setRoles(String[] roles) {
+        this.roles = roles;
     }
 }

@@ -1,19 +1,18 @@
 package com.ciscospark;
 
-/**
- * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
- */
-class SparkImpl extends Spark {
+public class SparkEncryptionImpl extends Spark {
 
     private final Client client;
+    private final KmsKeyManager kmsKeyManager;
 
-    public SparkImpl(Client client) {
+    public SparkEncryptionImpl(Client client) {
         this.client = client;
+        this.kmsKeyManager = new KmsKeyManager(client);
     }
 
     @Override
     public RequestBuilder<Room> rooms() {
-        return new RequestBuilderImpl(Room.class, client, "/rooms");
+        return new RequestBuilderRoomEncryptionImpl(Room.class, client, "/rooms", kmsKeyManager);
     }
 
     @Override
@@ -43,6 +42,6 @@ class SparkImpl extends Spark {
 
     @Override
     public RequestBuilder<Webhook> webhooks() {
-        return new RequestBuilderImpl<Webhook>(Webhook.class, client, "/webhooks");
+        return new RequestBuilderImpl<>(Webhook.class, client, "/webhooks");
     }
 }

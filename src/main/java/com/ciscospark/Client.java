@@ -6,12 +6,10 @@ import javax.json.JsonReader;
 import javax.json.stream.JsonGenerator;
 import javax.json.stream.JsonParser;
 import java.io.*;
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.logging.Level;
@@ -23,20 +21,21 @@ import java.util.regex.Pattern;
  * Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
  */
 class Client {
+
     private static final String TRACKING_ID = "TrackingID";
-    public static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
+    private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
+    private final URI baseUri;
+    private final URI redirectUri;
+    private final String clientId;
+    private final String clientSecret;
+    private final Logger logger;
+    private final Boolean enableEndToEndEncryption;
+    private String accessToken;
+    private String authCode;
+    private JsonMapper jsonMapper = new JsonMapper();
+    private String refreshToken;
 
-    final URI baseUri;
-
-    String accessToken;
-    String authCode;
-    final URI redirectUri;
-    String refreshToken;
-    final String clientId;
-    final String clientSecret;
-    final Logger logger;
-
-    Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger) {
+    public Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger, Boolean enableEndToEndEncryption) {
         this.authCode = authCode;
         this.redirectUri = redirectUri;
         this.baseUri = baseUri;
@@ -45,45 +44,54 @@ class Client {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.logger = logger;
+        this.enableEndToEndEncryption = enableEndToEndEncryption;
     }
 
-    <T> T post(Class<T> clazz, String path, T body) {
-        return readJson(clazz, request("POST", path, null, body));
+    public <T> T post(Class<T> clazz, String path, T body) {
+        return jsonMapper.readJson(clazz, request("POST", path, null, body));
     }
 
-    <T> T post(Class<T> clazz, URL url, T body) {
-        return readJson(clazz, request(url, "POST", body).inputStream);
+    public <T> T post(Class<T> clazz, URL url, T body) {
+        return jsonMapper.readJson(clazz, request(url, "POST", body).inputStream);
     }
 
-    <T> T put(Class<T> clazz, String path, T body) {
-        return readJson(clazz, request("PUT", path, null, body));
+    public <U, V> V posts(Class<V> clazz, String path, U body) {
+        return posts(clazz, path, null, body);
     }
 
-    <T> T put(Class<T> clazz, URL url, T body) {
-        return readJson(clazz, request(url, "PUT", body).inputStream);
+    public <U, V> V posts(Class<V> clazz, String path, List<String[]> params, U body) {
+        return jsonMapper.readJson(clazz, request("POST", path, params, body));
     }
 
-    <T> T get(Class<T> clazz, String path, List<String[]> params) {
-        return readJson(clazz, request("GET", path, params, null));
+    public <T> T put(Class<T> clazz, String path, T body) {
+        return jsonMapper.readJson(clazz, request("PUT", path, null, body));
     }
 
-    <T> T get(Class<T> clazz, URL url) {
-        return readJson(clazz, request(url, "GET", null).inputStream);
+    public <T> T put(Class<T> clazz, URL url, T body) {
+        return jsonMapper.readJson(clazz, request(url, "PUT", body).inputStream);
     }
 
-    <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
-        return new PagingIterator<T>(clazz, getUrl(path, params));
+    public <T> T get(Class<T> clazz, String path, List<String[]> params) {
+        return jsonMapper.readJson(clazz, request("GET", path, params, null));
     }
 
-    <T> Iterator<T> list(Class<T> clazz, URL url) {
-        return new PagingIterator<T>(clazz, url);
+    public <T> T get(Class<T> clazz, URL url) {
+        return jsonMapper.readJson(clazz, request(url, "GET", null).inputStream);
     }
 
-    void delete(String path) {
+    public <T> Iterator<T> list(Class<T> clazz, String path, List<String[]> params) {
+        return new PagingIterator<>(clazz, getUrl(path, params));
+    }
+
+    public <T> Iterator<T> list(Class<T> clazz, URL url) {
+        return new PagingIterator<>(clazz, url);
+    }
+
+    public void delete(String path) {
         delete(getUrl(path, null));
     }
 
-    void delete(URL url) {
+    public void delete(URL url) {
         try {
             HttpURLConnection connection = getConnection(url);
             connection.setRequestMethod("DELETE");
@@ -93,7 +101,6 @@ class Client {
             throw new SparkException(ex);
         }
     }
-
 
     public <T> LinkedResponse<List<T>> paginate(final Class<T> clazz, URL url) {
         LinkedResponse.BodyCreator<List<T>> function = new LinkedResponse.BodyCreator<List<T>>() {
@@ -106,7 +113,7 @@ class Client {
                 for (JsonParser.Event event = parser.next();
                      event == JsonParser.Event.START_OBJECT;
                      event = parser.next()) {
-                    result.add(readObject(clazz, parser));
+                    result.add(jsonMapper.readObject(clazz, parser));
                 }
                 return result;
             }
@@ -124,22 +131,7 @@ class Client {
         return paginate(clazz, url);
     }
 
-
-    <T> InputStream request(String method, String path, List<String[]> params, T body) {
-        URL url = getUrl(path, params);
-        return request(url, method, body).inputStream;
-    }
-    static class Response {
-        HttpURLConnection connection;
-        InputStream inputStream;
-
-        public Response(HttpURLConnection connection, InputStream inputStream) {
-            this.connection = connection;
-            this.inputStream = inputStream;
-        }
-    }
-
-    <T> Response request(URL url, String method, T body) {
+    public <T> Response request(URL url, String method, T body) {
         if (accessToken == null) {
             if (!authenticate()) {
                 throw new NotAuthenticatedException();
@@ -157,11 +149,36 @@ class Client {
         }
     }
 
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public <T> InputStream request(String method, String path, List<String[]> params, T body) {
+        URL url = getUrl(path, params);
+        return request(url, method, body).inputStream;
+    }
+
+    private ErrorMessage parseErrorMessage(InputStream errorStream) {
+        try {
+            if (errorStream == null) {
+                return null;
+            }
+            JsonReader reader = Json.createReader(errorStream);
+            JsonObject jsonObject = reader.readObject();
+            ErrorMessage result = new ErrorMessage();
+            result.setMessage(jsonObject.getString("message"));
+            result.setTrackingId(jsonObject.getString("trackingId"));
+            return result;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     private boolean authenticate() {
         if (clientId != null && clientSecret != null) {
             if (authCode != null && redirectUri != null) {
                 log(Level.FINE, "Requesting access token");
-                URL url = getUrl("/access_token",null);
+                URL url = getUrl("/access_token", null);
                 AccessTokenRequest body = new AccessTokenRequest();
                 body.setGrant_type("authorization_code");
                 body.setClient_id(clientId);
@@ -169,21 +186,21 @@ class Client {
                 body.setCode(authCode);
                 body.setRedirect_uri(redirectUri);
                 Response response = doRequest(url, "POST", body);
-                AccessTokenResponse responseBody = readJson(AccessTokenResponse.class, response.inputStream);
+                AccessTokenResponse responseBody = jsonMapper.readJson(AccessTokenResponse.class, response.inputStream);
                 accessToken = responseBody.getAccess_token();
                 refreshToken = responseBody.getRefresh_token();
                 authCode = null;
                 return true;
             } else if (refreshToken != null) {
                 log(Level.FINE, "Refreshing access token");
-                URL url = getUrl("/access_token",null);
+                URL url = getUrl("/access_token", null);
                 AccessTokenRequest body = new AccessTokenRequest();
                 body.setClient_id(clientId);
                 body.setClient_secret(clientSecret);
                 body.setRefresh_token(refreshToken);
                 body.setGrant_type("refresh_token");
                 Response response = doRequest(url, "POST", body);
-                AccessTokenResponse responseBody = readJson(AccessTokenResponse.class, response.inputStream);
+                AccessTokenResponse responseBody = jsonMapper.readJson(AccessTokenResponse.class, response.inputStream);
                 accessToken = responseBody.getAccess_token();
                 return true;
             }
@@ -204,7 +221,7 @@ class Client {
             connection.setRequestMethod(method);
             if (logger != null && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Request {0}: {1} {2}",
-                        new Object[] { trackingId, method, connection.getURL().toString() });
+                        new Object[]{trackingId, method, connection.getURL().toString()});
             }
             if (body != null) {
                 connection.setDoOutput(true);
@@ -212,7 +229,7 @@ class Client {
                     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                     writeJson(body, byteArrayOutputStream);
                     logger.log(Level.FINEST, "Request Body {0}: {1}",
-                            new Object[] { trackingId, byteArrayOutputStream.toString() });
+                            new Object[]{trackingId, byteArrayOutputStream.toString()});
                     byteArrayOutputStream.writeTo(connection.getOutputStream());
                 } else {
                     writeJson(body, connection.getOutputStream());
@@ -222,7 +239,7 @@ class Client {
             int responseCode = connection.getResponseCode();
             if (logger != null && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Response {0}: {1} {2}",
-                        new Object[] { trackingId, responseCode, connection.getResponseMessage() });
+                        new Object[]{trackingId, responseCode, connection.getResponseMessage()});
             }
             checkForErrorResponse(connection, responseCode);
 
@@ -281,37 +298,16 @@ class Client {
 
             if (errorMessage != null) {
                 errorMessageBuilder.append(": ");
-                errorMessageBuilder.append(errorMessage.message);
+                errorMessageBuilder.append(errorMessage.getMessage());
             }
 
             throw new SparkException(errorMessageBuilder.toString());
         }
     }
 
-    static class ErrorMessage {
-        String message;
-        String trackingId;
-    }
-
-    private static ErrorMessage parseErrorMessage(InputStream errorStream) {
-        try {
-            if (errorStream == null) {
-                return null;
-            }
-            JsonReader reader = Json.createReader(errorStream);
-            JsonObject jsonObject = reader.readObject();
-            ErrorMessage result = new ErrorMessage();
-            result.message = jsonObject.getString("message");
-            result.trackingId = jsonObject.getString("trackingId");
-            return result;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
     private HttpURLConnection getConnection(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestProperty("Content-type", "application/json");
+        connection.setRequestProperty("Content-Type", "application/json");
         if (accessToken != null) {
             String authorization = accessToken;
             if (!authorization.startsWith("Bearer ")) {
@@ -319,107 +315,12 @@ class Client {
             }
             connection.setRequestProperty("Authorization", authorization);
         }
+        // TODO - Should pass in the header map as a whole
+        if (enableEndToEndEncryption) {
+            connection.setRequestProperty("Content-Type", "application/json;ciscospark+v1");
+        }
         connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
         return connection;
-    }
-
-
-    private static <T> T readJson(Class<T> clazz, InputStream inputStream) {
-        JsonParser parser = Json.createParser(inputStream);
-        parser.next();
-        return readObject(clazz, parser);
-    }
-
-    private static <T> T readObject(Class<T> clazz, JsonParser parser) {
-        try {
-            T result = clazz.newInstance();
-            List<Object> list = null;
-            Field field = null;
-            PARSER_LOOP: while (parser.hasNext()) {
-                JsonParser.Event event = parser.next();
-                switch (event) {
-                    case KEY_NAME:
-                        String key = parser.getString();
-                        try {
-                            field = clazz.getDeclaredField(key);
-                            field.setAccessible(true);
-                        } catch (Exception ex) {
-                            // ignore
-                        }
-                        break;
-                    case VALUE_FALSE:
-                        if (field != null) {
-                            field.set(result, false);
-                            field = null;
-                        }
-                        break;
-                    case VALUE_TRUE:
-                        if (field != null) {
-                            field.set(result, true);
-                            field = null;
-                        }
-                        break;
-                    case VALUE_NUMBER:
-                        if (field != null) {
-                            Object value = (parser.isIntegralNumber() ? parser.getInt() : parser.getBigDecimal());
-                            field.set(result, value);
-                            field = null;
-                        }
-                        break;
-                    case VALUE_STRING:
-                        if (list != null) {
-                            list.add(parser.getString());
-                        } else if (field != null) {
-                            if (field.getType().isAssignableFrom(String.class)) {
-                                field.set(result, parser.getString());
-                            } else if (field.getType().isAssignableFrom(Date.class)) {
-                                DateFormat dateFormat = new SimpleDateFormat(ISO8601_FORMAT);
-                                field.set(result, dateFormat.parse(parser.getString()));
-                            } else if (field.getType().isAssignableFrom(URI.class)) {
-                                field.set(result, URI.create(parser.getString()));
-                            }
-                            field = null;
-                        }
-                        break;
-                    case VALUE_NULL:
-                        field = null;
-                        break;
-                    case START_ARRAY:
-                        list = new ArrayList<Object>();
-                        break;
-                    case END_ARRAY:
-                        if (field != null) {
-                            Class itemClazz;
-                            if (field.getType().equals(String[].class)) {
-                                itemClazz = String.class;
-                            } else if (field.getType().equals(URI[].class)) {
-                                itemClazz = URI.class;
-                                ListIterator<Object> iterator = list.listIterator();
-                                while (iterator.hasNext()) {
-                                    Object next = iterator.next();
-                                    iterator.set(URI.create(next.toString()));
-                                }
-                            } else {
-                                throw new SparkException("bad field class: " + field.getType());
-                            }
-                            Object array = Array.newInstance(itemClazz, list.size());
-                            field.set(result, list.toArray((Object[]) array));
-                            field = null;
-                        }
-                        list = null;
-                        break;
-                    case END_OBJECT:
-                        break PARSER_LOOP;
-                    default:
-                        throw new SparkException("bad json event: " + event);
-                }
-            }
-            return result;
-        } catch (SparkException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new SparkException(ex);
-        }
     }
 
     private URL getUrl(String path, List<String[]> params) {
@@ -471,8 +372,7 @@ class Client {
                 } else if (type == BigDecimal.class) {
                     jsonGenerator.write(field.getName(), (BigDecimal) value);
                 } else if (type == Date.class) {
-                    DateFormat dateFormat = new SimpleDateFormat(ISO8601_FORMAT);
-                    jsonGenerator.write(field.getName(), dateFormat.format(value));
+                    jsonGenerator.write(field.getName(), new SimpleDateFormat(Properties.ISO8601_FORMAT).format((Date) value));
                 } else if (type == URI.class) {
                     jsonGenerator.write(field.getName(), value.toString());
                 } else if (type == Boolean.class) {
@@ -499,12 +399,48 @@ class Client {
         jsonGenerator.close();
     }
 
-    private class PagingIterator<T> implements Iterator<T> {
+    private void scrollToItemsArray(JsonParser parser) {
+        JsonParser.Event event;
+        while (parser.hasNext()) {
+            event = parser.next();
+            if (event == JsonParser.Event.KEY_NAME && parser.getString().equals("items")) {
+                break;
+            }
+        }
+
+        event = parser.next();
+        if (event != JsonParser.Event.START_ARRAY) {
+            throw new SparkException("bad json");
+        }
+    }
+
+    private HttpURLConnection getLink(HttpURLConnection connection, String rel) throws IOException {
+        String link = connection.getHeaderField("Link");
+        return parseLinkHeader(link, rel);
+    }
+
+    private HttpURLConnection parseLinkHeader(String link, String desiredRel) throws IOException {
+        HttpURLConnection result = null;
+        if (link != null && !"".equals(link)) {
+            Matcher matcher = linkPattern.matcher(link);
+            while (matcher.find()) {
+                String url = matcher.group(1);
+                String foundRel = matcher.group(2);
+                if (desiredRel.equals(foundRel)) {
+                    result = getConnection(new URL(url));
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    public class PagingIterator<T> implements Iterator<T> {
         private final Class<T> clazz;
-        private URL url;
+        T current;
         private HttpURLConnection connection;
         private JsonParser parser;
-        T current;
+        private URL url;
 
         public PagingIterator(Class<T> clazz, URL url) {
             this.clazz = clazz;
@@ -536,7 +472,7 @@ class Client {
                             return hasNext();
                         }
                     }
-                    current = readObject(clazz, parser);
+                    current = jsonMapper.readObject(clazz, parser);
                 }
                 return current != null;
             } catch (IOException ex) {
@@ -561,47 +497,5 @@ class Client {
         public void remove() {
             throw new UnsupportedOperationException();
         }
-    }
-
-
-
-    private void scrollToItemsArray(JsonParser parser) {
-        JsonParser.Event event;
-        while (parser.hasNext()) {
-            event = parser.next();
-            if (event == JsonParser.Event.KEY_NAME &&  parser.getString().equals("items")) {
-                break;
-            }
-        }
-
-        event = parser.next();
-        if (event != JsonParser.Event.START_ARRAY) {
-            throw new SparkException("bad json");
-        }
-    }
-
-
-
-    private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
-
-    private HttpURLConnection getLink(HttpURLConnection connection, String rel) throws IOException {
-        String link = connection.getHeaderField("Link");
-        return parseLinkHeader(link, rel);
-    }
-
-    private HttpURLConnection parseLinkHeader(String link, String desiredRel) throws IOException {
-        HttpURLConnection result = null;
-        if (link != null && !"".equals(link)) {
-            Matcher matcher = linkPattern.matcher(link);
-            while (matcher.find()) {
-                String url = matcher.group(1);
-                String foundRel = matcher.group(2);
-                if (desiredRel.equals(foundRel)) {
-                    result = getConnection(new URL(url));
-                    break;
-                }
-            }
-        }
-        return result;
     }
 }
