@@ -83,6 +83,36 @@ class Example {
         
         
         
+        /* Get Person Details */
+        Person person=new Person();
+        person=spark.people().path("/<<<**Insert PersonId**>>>").get();
+
+        System.out.println("ID - " + person.getId());
+        System.out.println("DisplayName - " + person.getDisplayName());
+        System.out.println("Emails - " + Arrays.toString(person.getEmails()));
+        System.out.println("FirstName - " + person.getFirstName());
+        System.out.println("LastName - " + person.getLastName());
+        System.out.println("Avatar - " + person.getAvatar());
+        System.out.println("OrgID - " + person.getOrgId());
+        System.out.println("Roles - " + Arrays.toString(person.getRoles()));
+        System.out.println("Licenses - " + Arrays.toString(person.getLicenses()));
+        System.out.println("Created - " + person.getCreated());
+        System.out.println("TimeZone - " + person.getTimeZone());
+        System.out.println("Status - " + person.getStatus());
+        System.out.println("Type - " + person.getType());
+
+        /* Update Avatar */
+        person.setAvatar("https://developer.ciscospark.com/images/logo_spark_lg@256.png");
+        person=spark.people().path("/<<<**Insert PersonId**>>>").put(person);
+
+
+        /* List people in the org */
+        spark.people().iterate().forEachRemaining(ppl -> {
+        System.out.println(ppl.getId() + ": " + ppl.getDisplayName()+" : Creation: "+ppl.getCreated());
+        });
+        
+        
+       
         
         // Create a new team
         Team team = new Team();
