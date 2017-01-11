@@ -14,6 +14,10 @@ public abstract class Spark {
     public abstract RequestBuilder<Team> teams();
     public abstract RequestBuilder<TeamMembership> teamMemberships();
     public abstract RequestBuilder<Webhook> webhooks();
+    public abstract RequestBuilder<Organisation> organisations();
+    public abstract RequestBuilder<License> licenses();
+    public abstract RequestBuilder<Role> roles();
+
 
     /**
      * Created on 11/24/15.
