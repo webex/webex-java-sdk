@@ -112,7 +112,21 @@ class Example {
         });
         
         
+        /*Get Organisations*/
+        spark.organisations().iterate().forEachRemaining(org -> {
+        System.out.println(org.getId() + ": " + org.getDisplayName()+" : Creation: "+org.getCreated());
+        });
        
+       /*Get Licenses*/
+        spark.licenses().iterate().forEachRemaining(license -> {
+        System.out.println("GET Licenses " +license.getId() + ": DisplayName:- " + license.getDisplayName()+" : totalUnits:         "+Integer.toString(license.getTotalUnits())+" : consumedUnits: "+Integer.toString(license.getConsumedUnits()));
+        });
+        
+        /*Get Roles*/
+        spark.roles().iterate().forEachRemaining(role -> {
+        System.out.println("GET Roles " +role.getId() + ": Name:- " + role.getName());
+        });
+        
         
         // Create a new team
         Team team = new Team();
