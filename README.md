@@ -112,8 +112,8 @@ class Example {
         });
         
         
-        /*Get Organisations*/
-        spark.organisations().iterate().forEachRemaining(org -> {
+        /*Get Organizations*/
+        spark.organizations().iterate().forEachRemaining(org -> {
         System.out.println(org.getId() + ": " + org.getDisplayName()+" : Creation: "+org.getCreated());
         });
        
