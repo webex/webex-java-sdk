@@ -47,8 +47,8 @@ class SparkImpl extends Spark {
     }
     
     @Override
-    public RequestBuilder<Organisation> organisations() {
-        return new RequestBuilderImpl<Organisation>(Organisation.class, client, "/organizations");
+    public RequestBuilder<Organization> organizations() {
+        return new RequestBuilderImpl<Organization>(Organization.class, client, "/organizations");
     }
     
     @Override
