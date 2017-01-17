@@ -45,4 +45,20 @@ class SparkImpl extends Spark {
     public RequestBuilder<Webhook> webhooks() {
         return new RequestBuilderImpl<Webhook>(Webhook.class, client, "/webhooks");
     }
+    
+    @Override
+    public RequestBuilder<Organization> organizations() {
+        return new RequestBuilderImpl<Organization>(Organization.class, client, "/organizations");
+    }
+    
+    @Override
+    public RequestBuilder<License> licenses() {
+        return new RequestBuilderImpl<License>(License.class, client, "/licenses");
+    }
+    
+    @Override
+    public RequestBuilder<Role> roles() {
+        return new RequestBuilderImpl<Role>(Role.class, client, "/roles");
+    }
+    
 }

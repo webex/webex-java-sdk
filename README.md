@@ -83,6 +83,50 @@ class Example {
         
         
         
+        /* Get Person Details */
+        Person person=new Person();
+        person=spark.people().path("/<<<**Insert PersonId**>>>").get();
+
+        System.out.println("ID - " + person.getId());
+        System.out.println("DisplayName - " + person.getDisplayName());
+        System.out.println("Emails - " + Arrays.toString(person.getEmails()));
+        System.out.println("FirstName - " + person.getFirstName());
+        System.out.println("LastName - " + person.getLastName());
+        System.out.println("Avatar - " + person.getAvatar());
+        System.out.println("OrgID - " + person.getOrgId());
+        System.out.println("Roles - " + Arrays.toString(person.getRoles()));
+        System.out.println("Licenses - " + Arrays.toString(person.getLicenses()));
+        System.out.println("Created - " + person.getCreated());
+        System.out.println("TimeZone - " + person.getTimeZone());
+        System.out.println("Status - " + person.getStatus());
+        System.out.println("Type - " + person.getType());
+
+        /* Update Avatar */
+        person.setAvatar("https://developer.ciscospark.com/images/logo_spark_lg@256.png");
+        person=spark.people().path("/<<<**Insert PersonId**>>>").put(person);
+
+
+        /* List people in the org */
+        spark.people().iterate().forEachRemaining(ppl -> {
+        System.out.println(ppl.getId() + ": " + ppl.getDisplayName()+" : Creation: "+ppl.getCreated());
+        });
+        
+        
+        /*Get Organizations*/
+        spark.organizations().iterate().forEachRemaining(org -> {
+        System.out.println(org.getId() + ": " + org.getDisplayName()+" : Creation: "+org.getCreated());
+        });
+       
+       /*Get Licenses*/
+        spark.licenses().iterate().forEachRemaining(license -> {
+        System.out.println("GET Licenses " +license.getId() + ": DisplayName:- " + license.getDisplayName()+" : totalUnits:         "+Integer.toString(license.getTotalUnits())+" : consumedUnits: "+Integer.toString(license.getConsumedUnits()));
+        });
+        
+        /*Get Roles*/
+        spark.roles().iterate().forEachRemaining(role -> {
+        System.out.println("GET Roles " +role.getId() + ": Name:- " + role.getName());
+        });
+        
         
         // Create a new team
         Team team = new Team();
