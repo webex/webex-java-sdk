@@ -9,6 +9,8 @@ import java.util.Date;
 public class Message {
     private String id;
     private String roomId;
+    private String toPersonId;
+    private String toPersonEmail;
     private String personId;
     private String personEmail;
     private String text;
@@ -34,6 +36,22 @@ public class Message {
 
     public void setRoomId(String roomId) {
         this.roomId = roomId;
+    }
+
+    public String getToPersonId() {
+        return toPersonId;
+    }
+
+    public void setToPersonId(String toPersonId) {
+        this.toPersonId = toPersonId;
+    }
+
+    public String getToPersonEmail() {
+        return toPersonEmail;
+    }
+
+    public void setToPersonEmail(String toPersonEmail) {
+        this.toPersonEmail = toPersonEmail;
     }
 
     public String getPersonId() {
