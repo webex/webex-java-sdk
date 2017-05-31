@@ -1,26 +1,37 @@
 # spark-java-sdk
-A Java library for consuming RESTful APIs for Cisco Spark.  Please visit us at http://developer.ciscospark.com/.
 
-# Installing
-This project is compiled with Java 1.6 and [Apache Maven](https://maven.apache.org/)
+[![license](https://img.shields.io/github/license/ciscospark/spark-java-sdk.svg)](https://github.com/ciscospark/spark-java-sdk/blob/master/LICENSE)
 
-    $ git clone git@github.com:ciscospark/spark-java-sdk
-    $ cd spark-java-sdk
-    $ mvn install
+> The Cisco Spark Java SDK
 
-The library was developed using the [Java API for JSON Processing](http://www.oracle.com/technetwork/articles/java/json-1973242.html).
-An implementation of JSONP must be present in the classpath.  A reference implementation is available from the 
-[Glassfish project](http://search.maven.org/remotecontent?filepath=org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar) or via 
-Maven Central:
+The Cisco Spark Java SDK is a Java library for consuming Cisco Spark's RESTful APIs. Please visit us at https://developer.ciscospark.com/ for more information about Cisco Spark for Developers.
 
-    <dependency>
-      <groupId>org.glassfish</groupId>
-      <artifactId>javax.json</artifactId>
-      <version>1.0.4</version>
-    </dependency>
+## Table of Contents
 
+- [Install](#install)
+- [Usage](#usage)
+- [License](#license)
 
-# Examples
+## Install
+This project is compiled with Java 1.6 and [Apache Maven](https://maven.apache.org/).
+
+```bash
+git clone git@github.com:ciscospark/spark-java-sdk
+cd spark-java-sdk
+mvn install
+```
+
+The library was developed using the [Java API for JSON Processing](http://www.oracle.com/technetwork/articles/java/json-1973242.html). An implementation of JSONP must be present in the classpath. A reference implementation is available from the [Glassfish project](http://search.maven.org/remotecontent?filepath=org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar) or via Maven Central:
+
+```xml
+<dependency>
+  <groupId>org.glassfish</groupId>
+  <artifactId>javax.json</artifactId>
+  <version>1.0.4</version>
+</dependency>
+```
+
+## Usage
 
 Below is an example of the SDK in action
 
@@ -30,7 +41,8 @@ import java.net.URI;
 
 class Example {
     public static void main(String[] args) {
-        // To obtain a developer access token, visit http://developer.ciscospark.com
+
+        // To obtain a developer access token, visit https://developer.ciscospark.com
         String accessToken = "<<secret>>";
 
         // Initialize the client
@@ -39,12 +51,14 @@ class Example {
                 .accessToken(accessToken)
                 .build();
 
+
         // List the rooms that I'm in
         spark.rooms()
                 .iterate()
                 .forEachRemaining(room -> {
                     System.out.println(room.getTitle() + ", created " + room.getCreated() + ": " + room.getId());
                 });
+
 
         // Create a new room
         Room room = new Room();
@@ -80,10 +94,9 @@ class Example {
         message.setRoomId(room.getId());
         message.setFiles(URI.create("http://example.com/hello_world.jpg"));
         spark.messages().post(message);
-        
-        
-        
-        /* Get Person Details */
+
+
+        // Get person details
         Person person=new Person();
         person=spark.people().path("/<<<**Insert PersonId**>>>").get();
 
@@ -101,33 +114,36 @@ class Example {
         System.out.println("Status - " + person.getStatus());
         System.out.println("Type - " + person.getType());
 
-        /* Update Avatar */
+
+        // Update avatar
         person.setAvatar("https://developer.ciscospark.com/images/logo_spark_lg@256.png");
         person=spark.people().path("/<<<**Insert PersonId**>>>").put(person);
 
 
-        /* List people in the org */
+        // List people in the organization
         spark.people().iterate().forEachRemaining(ppl -> {
         System.out.println(ppl.getId() + ": " + ppl.getDisplayName()+" : Creation: "+ppl.getCreated());
         });
-        
-        
-        /*Get Organizations*/
+
+
+        // Get organizations
         spark.organizations().iterate().forEachRemaining(org -> {
         System.out.println(org.getId() + ": " + org.getDisplayName()+" : Creation: "+org.getCreated());
         });
-       
-       /*Get Licenses*/
+
+
+        // Get licenses
         spark.licenses().iterate().forEachRemaining(license -> {
         System.out.println("GET Licenses " +license.getId() + ": DisplayName:- " + license.getDisplayName()+" : totalUnits:         "+Integer.toString(license.getTotalUnits())+" : consumedUnits: "+Integer.toString(license.getConsumedUnits()));
         });
-        
-        /*Get Roles*/
+
+
+        // Get roles
         spark.roles().iterate().forEachRemaining(role -> {
         System.out.println("GET Roles " +role.getId() + ": Name:- " + role.getName());
         });
-        
-        
+
+
         // Create a new team
         Team team = new Team();
         team.setName("Brand New Team");
@@ -148,11 +164,12 @@ class Example {
                 .forEachRemaining(member -> {
                     System.out.println(member.getPersonEmail());
                 });
-
     }
 }
 ```
 
-# Legalese
+## License
 
-Copyright (c) 2015 Cisco Systems, Inc. See LICENSE file.
+&copy; 2015-2017 Cisco Systems, Inc. and/or its affiliates. All Rights Reserved.
+
+See [LICENSE](LICENSE) for details.
