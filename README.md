@@ -120,6 +120,26 @@ class Example {
         person=spark.people().path("/<<<**Insert PersonId**>>>").put(person);
 
 
+        // Create a new webhook
+        Webhook webhook=new Webhook();
+        webhook.setName("My Webhook");
+        webhook.setResource("messages");
+        webhook.setEvent("created");
+        webhook.setFilter("mentionedPeople=me");
+        webhook.setTargetUrl("http://www.example.com/webhook");
+        webhook=spark.webhooks().post(webhook);
+
+
+        // List webhooks
+        spark.webhooks().iterate().forEachRemaining(webhook -> {
+            System.out.println(webhook.getId() + ": " + webhook.getName() + " (" + webhook.getTargetUrl() + ")");
+        });
+
+
+        // Delete a webhook
+        webhook=spark.webhooks().path("/<<<**Insert WebhookId**>>>").delete();
+
+
         // List people in the organization
         spark.people().iterate().forEachRemaining(ppl -> {
         System.out.println(ppl.getId() + ": " + ppl.getDisplayName()+" : Creation: "+ppl.getCreated());
