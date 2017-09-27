@@ -126,13 +126,14 @@ class Example {
         webhook.setResource("messages");
         webhook.setEvent("created");
         webhook.setFilter("mentionedPeople=me");
-        webhook.setTargetUrl("http://www.example.com/webhook");
+        webhook.setSecret("SOMESECRET");
+        webhook.setTargetUrl(URI.create("http://www.example.com/webhook"));
         webhook=spark.webhooks().post(webhook);
 
 
         // List webhooks
-        spark.webhooks().iterate().forEachRemaining(webhook -> {
-            System.out.println(webhook.getId() + ": " + webhook.getName() + " (" + webhook.getTargetUrl() + ")");
+        spark.webhooks().iterate().forEachRemaining(hook -> {
+            System.out.println(hook.getId() + ": " + hook.getName() + " (" + hook.getTargetUrl() + ")" + " Secret - " + hook.getSecret());
         });
 
 
