@@ -13,6 +13,7 @@ public class Webhook {
     private String event;
     private String filter;
     private URI targetUrl;
+    private String secret;
     private Date created;
 
     public String getId() {
@@ -61,6 +62,14 @@ public class Webhook {
 
     public void setTargetUrl(URI targetUrl) {
         this.targetUrl = targetUrl;
+    }
+
+    public String getSecret() {
+        return secret;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
     }
 
     public Date getCreated() {
