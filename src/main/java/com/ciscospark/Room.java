@@ -13,7 +13,16 @@ public class Room {
     private Date created;
     private Date lastActivity;
     private String type;
+    private String sipAddress;
+    
+    public String getSipAddress() {
+        return sipAddress;
+    }
 
+    public void setSipAddress(String sipAddress) {
+        this.sipAddress = sipAddress;
+    }
+    
     public String getTitle() {
         return title;
     }
