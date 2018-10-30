@@ -1,5 +1,6 @@
 <h1 align="center">
     <a href="developer.webex.com"><img src="https://www.webex.com/content/dam/wbx/us/images/offer/plans_2-2.png"/></a>
+    <br/>
     <a href="developer.webex.com">spark-java-sdk</a>
 </h1>
 
