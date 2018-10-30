@@ -157,8 +157,8 @@ spark.teamMemberships()
 
 ## Maintainers
 
-- Brian Bender (bbender)
-- Santosh kk (sankotum)
+- Brian (bbender)
+- Santosh (santokum)
 
 ## License
 
