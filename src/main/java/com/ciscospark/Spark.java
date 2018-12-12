@@ -31,9 +31,22 @@ public abstract class Spark {
         private String clientSecret;
         private Logger logger;
         private URI baseUrl = URI.create("https://api.ciscospark.com/v1");
+        private Integer connectTimeout;
+        private Integer readTimeout;
+
 
         public Builder baseUrl(URI uri) {
             this.baseUrl = uri;
+            return this;
+        }
+
+        public Builder connectTimeout(Integer connectTimeout) {
+            this.connectTimeout = connectTimeout;
+            return this;
+        }
+
+        public Builder readTimeout(Integer readTimeout) {
+            this.readTimeout = readTimeout;
             return this;
         }
 
@@ -73,7 +86,7 @@ public abstract class Spark {
         }
 
         public Spark build() {
-            return new SparkImpl(new Client(baseUrl, authCode, redirectUri, accessToken, refreshToken, clientId, clientSecret, logger));
+            return new SparkImpl(new Client(baseUrl, authCode, redirectUri, accessToken, refreshToken, clientId, clientSecret, logger, connectTimeout, readTimeout));
         }
     }
 
