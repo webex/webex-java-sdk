@@ -20,6 +20,8 @@ public class Person {
     private Date lastActivity;
     private String status;
     private String type;
+    private PhoneNumber[] phoneNumbers;
+
 
     public String getId() {
         return id;
@@ -131,5 +133,13 @@ public class Person {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public void setPhoneNumbers(PhoneNumber[] phoneNumbers) {
+        this.phoneNumbers = phoneNumbers;
+    }
+
+    public PhoneNumber[] getPhoneNumbers() {
+        return this.phoneNumbers;
     }
 }

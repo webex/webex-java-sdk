@@ -335,11 +335,12 @@ class Client {
             T result = clazz.newInstance();
             List<Object> list = null;
             Field field = null;
+            String key = "";
             PARSER_LOOP: while (parser.hasNext()) {
                 JsonParser.Event event = parser.next();
                 switch (event) {
                     case KEY_NAME:
-                        String key = parser.getString();
+                        key = parser.getString();
                         try {
                             field = clazz.getDeclaredField(key);
                             field.setAccessible(true);
@@ -390,7 +391,9 @@ class Client {
                     case END_ARRAY:
                         if (field != null) {
                             Class itemClazz;
-                            if (field.getType().equals(String[].class)) {
+                            if ( field.getType().equals(PhoneNumber[].class)) {
+                                itemClazz = PhoneNumber.class;
+                            } else if (field.getType().equals(String[].class)) {
                                 itemClazz = String.class;
                             } else if (field.getType().equals(URI[].class)) {
                                 itemClazz = URI.class;
@@ -407,6 +410,31 @@ class Client {
                             field = null;
                         }
                         list = null;
+                        break;
+                    case START_OBJECT:
+                        // we should construct these objects recursively
+                        // the following works only if the object is wrapped into an array
+
+                        // by convention the classes start with an uppercase letter whereas
+                        // the json starts with a lowercase character
+                        // in the json we would see something like PhoneNumber: {.....
+                        // and need to load the class PhoneNumber to hold the json object
+                        key = key.substring(0, 1).toUpperCase() + key.substring(1);
+
+                        // also by convention if we are in an array/list then we usually have a
+                        // plural s at the end, whereas for single objects there should be no 's
+
+
+                        if (null != list ) {
+                            // we are in a list - we likely have a s at the end, which we should drop
+                            if ( "s".equals(key.substring(key.length() - 1))) {
+                                key = key.substring(0, key.length()-1 );
+                            }
+                            list.add(readObject(Class.forName("com.ciscospark." + key), parser));
+                        } else {
+                            // in case of PhoneNumber this would return a PhoneNumber object
+                            field.set(result, readObject(Class.forName("com.ciscospark." + key), parser));
+                        }
                         break;
                     case END_OBJECT:
                         break PARSER_LOOP;
