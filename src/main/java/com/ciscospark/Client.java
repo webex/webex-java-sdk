@@ -335,11 +335,12 @@ class Client {
             T result = clazz.newInstance();
             List<Object> list = null;
             Field field = null;
+            String key = "";
             PARSER_LOOP: while (parser.hasNext()) {
                 JsonParser.Event event = parser.next();
                 switch (event) {
                     case KEY_NAME:
-                        String key = parser.getString();
+                        key = parser.getString();
                         try {
                             field = clazz.getDeclaredField(key);
                             field.setAccessible(true);
@@ -399,6 +400,8 @@ class Client {
                                     Object next = iterator.next();
                                     iterator.set(URI.create(next.toString()));
                                 }
+                            } else if (field.getType().getComponentType() != null /* this is an array class */ ) {
+                                itemClazz = field.getType().getComponentType(); // this would also cover the String array we had previously
                             } else {
                                 throw new SparkException("bad field class: " + field.getType());
                             }
@@ -407,6 +410,20 @@ class Client {
                             field = null;
                         }
                         list = null;
+                        break;
+                    case START_OBJECT:
+                        // we should construct these objects recursively
+
+                        // the field type points us in the direction of the class to instantiate
+
+
+                        if (null != list ) {
+                            // we are in a list - we likely have a s at the end, which we should drop
+                            list.add(readObject(field.getType().getComponentType(), parser));
+                        } else {
+                            // in case of PhoneNumber this would return a PhoneNumber object
+                            field.set(result, readObject(field.getType(), parser));
+                        }
                         break;
                     case END_OBJECT:
                         break PARSER_LOOP;
