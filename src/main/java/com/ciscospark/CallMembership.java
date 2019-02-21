@@ -113,10 +113,4 @@ public class CallMembership {
     public void setCreated(Date created) {
         this.created = created;
     }
-
-    @Override
-    public String toString() {
-        return "id:" + this.id + "\n" + "status:" + this.status + "\n" + "callStatus:" + this.callStatus + "\n" + "callId:" + this.callId + "\n" + "isHost:" + this.isHost + "\n" + "personId:" + this.personId + "\n" + "sipUrl:" + this.sipUrl + "\n" + "phoneNumber:" + this.phoneNumber + "\n" + "isGuest:" + this.isGuest + "\n" + "orgId:" + this.orgId + "\n" + "joinedDuration:" + this.joinedDuration + "\n" + "created:" + this.created + "\n";
-    }
-
 }
