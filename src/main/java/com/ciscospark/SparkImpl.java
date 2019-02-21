@@ -42,6 +42,11 @@ class SparkImpl extends Spark {
     }
 
     @Override
+    public RequestBuilder<CallMembership> callMemberships() {
+        return new RequestBuilderImpl(CallMembership.class, client, "/call/memberships");
+    }
+
+    @Override
     public RequestBuilder<Webhook> webhooks() {
         return new RequestBuilderImpl<Webhook>(Webhook.class, client, "/webhooks");
     }
