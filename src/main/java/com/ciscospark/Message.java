@@ -1,5 +1,6 @@
 package com.ciscospark;
 
+import javax.json.JsonArray;
 import java.net.URI;
 import java.util.Date;
 
@@ -21,6 +22,7 @@ public class Message {
     private String markdown;
     private String html;
     private String[] mentionedPeople;
+    private JsonArray attachments;
 
     public String getId() {
         return id;
@@ -132,5 +134,13 @@ public class Message {
 
     public void setMentionedPeople(String[] mentionedPeople) {
         this.mentionedPeople = mentionedPeople;
+    }
+
+    public JsonArray getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(JsonArray attachments) {
+        this.attachments = attachments;
     }
 }
