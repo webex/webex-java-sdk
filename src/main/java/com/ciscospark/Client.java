@@ -35,8 +35,14 @@ class Client {
     final String clientId;
     final String clientSecret;
     final Logger logger;
+    final private Integer connectTimeout;
+    final private Integer readTimeout;
 
     Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger) {
+        this(baseUri, authCode, redirectUri, accessToken, refreshToken, clientId, clientSecret, logger, null, null);
+    }
+
+    Client(URI baseUri, String authCode, URI redirectUri, String accessToken, String refreshToken, String clientId, String clientSecret, Logger logger, Integer connectTimeout, Integer readTimeout) {
         this.authCode = authCode;
         this.redirectUri = redirectUri;
         this.baseUri = baseUri;
@@ -45,6 +51,8 @@ class Client {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.logger = logger;
+        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout;
     }
 
     <T> T post(Class<T> clazz, String path, T body) {
@@ -320,6 +328,15 @@ class Client {
             connection.setRequestProperty("Authorization", authorization);
         }
         connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
+
+        if(connectTimeout != null) {
+            connection.setConnectTimeout(connectTimeout);
+        }
+
+        if(readTimeout != null) {
+            connection.setReadTimeout(readTimeout);
+        }
+
         return connection;
     }
 
