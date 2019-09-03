@@ -32,7 +32,7 @@ Before you can build the Cisco Webex Java SDK, you will need the following depen
 Fork the [webex-java-sdk](https://github.com/webex/webex-java-sdk) repository and `git clone` your fork:
 
 ```bash
-git clone https://github.com/webex/your-username/webex-java-sdk.git
+git clone https://github.com/your-username/webex-java-sdk.git
 ```
 
 Building the project from here is dependant on your environment and tooling.
