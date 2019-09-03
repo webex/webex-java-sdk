@@ -4,7 +4,6 @@
   - [Contributing Code](#contributing-code)
     - [Build Dependencies](#build-dependencies)
     - [Building the SDK](#building-the-sdk)
-    - [Running Tests](#running-tests)
     - [Git Commit Guidelines](#git-commit-guidelines)
       - [Commit Message Format](#commit-message-format)
       - [Revert](#revert)
@@ -115,4 +114,4 @@ git checkout feature
 git rebase master
 ```
 
-Finally, open a [new Pull Request](https://github.com/webex/webex-java-sdk/compare) with your changes. Be sure to mention the issues this request addresses in the body of the request. Once your request is opened, a developer will review, comment, and, when approved, merge your changes!
+Finally, open a [new Pull Request](https://github.com/webex/webex-java-sdk/compare) with your changes. Once your request is opened, a developer will review, comment, and, when approved, merge your changes!
