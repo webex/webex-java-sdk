@@ -1,6 +1,7 @@
 package com.ciscospark;
 
 import javax.json.Json;
+import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.json.stream.JsonGenerator;
@@ -492,6 +493,8 @@ class Client {
                     jsonGenerator.write(field.getName(), dateFormat.format(value));
                 } else if (type == URI.class) {
                     jsonGenerator.write(field.getName(), value.toString());
+                } else if (type == JsonArray.class) {
+                    jsonGenerator.write(field.getName(), (JsonArray) value);
                 } else if (type == Boolean.class) {
                     jsonGenerator.write(field.getName(), (Boolean) value);
                 } else if (type == String[].class) {
