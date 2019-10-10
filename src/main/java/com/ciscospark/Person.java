@@ -21,6 +21,10 @@ public class Person {
     private String status;
     private String type;
     private PhoneNumber[] phoneNumbers;
+    private Boolean loginEnabled;
+    private Date lastModified;
+    private String nickName;
+    private Boolean invitePending;
 
 
     public String getId() {
@@ -122,7 +126,7 @@ public class Person {
     public String getStatus() {
         return status;
     }
-    
+
     public void setStatus(String status) {
         this.status = status;
     }
@@ -141,5 +145,37 @@ public class Person {
 
     public PhoneNumber[] getPhoneNumbers() {
         return this.phoneNumbers;
+    }
+
+    public Boolean getLoginEnabled() {
+        return loginEnabled;
+    }
+
+    public void setLoginEnabled(Boolean loginEnabled) {
+        this.loginEnabled = loginEnabled;
+    }
+
+    public Date getLastModified() {
+        return lastModified;
+    }
+
+    public void setLastModified(Date lastModified) {
+        this.lastModified = lastModified;
+    }
+
+    public String getNickName() {
+        return nickName;
+    }
+
+    public void setNickName(String nickName) {
+        this.nickName = nickName;
+    }
+
+    public Boolean getInvitePending() {
+        return invitePending;
+    }
+
+    public void setInvitePending(Boolean invitePending) {
+        this.invitePending = invitePending;
     }
 }
