@@ -417,13 +417,17 @@ class Client {
 
                         // the field type points us in the direction of the class to instantiate
 
-
-                        if (null != list ) {
-                            // we are in a list - we likely have a s at the end, which we should drop
-                            list.add(readObject(field.getType().getComponentType(), parser));
+                        
+                        if (null != field) {
+                            if (null != list) {
+                                // we are in a list - we likely have a s at the end, which we should drop
+                                list.add(readObject(field.getType().getComponentType(), parser));
+                            } else {
+                                // in case of PhoneNumber this would return a PhoneNumber object
+                                field.set(result, readObject(field.getType(), parser));
+                            }
                         } else {
-                            // in case of PhoneNumber this would return a PhoneNumber object
-                            field.set(result, readObject(field.getType(), parser));
+                            list = null;
                         }
                         break;
                     case END_OBJECT:
