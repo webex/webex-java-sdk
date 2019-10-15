@@ -2,7 +2,7 @@ package com.ciscospark;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
+import javax.net.ssl.HttpsURLConnection;
 import java.net.URL;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -45,7 +45,7 @@ public class LinkedResponse<T> {
 
     private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
 
-    private void parseLinks(HttpURLConnection connection) throws IOException {
+    private void parseLinks(HttpsURLConnection connection) throws IOException {
         urls.clear();
         String link = connection.getHeaderField("Link");
         if (link != null && !"".equals(link)) {

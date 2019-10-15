@@ -14,7 +14,7 @@ _Why spark-java-sdk?_ : A rebranding took place in 2018, some time after this SD
 
 ## Prerequisites
 
-- Java 1.6
+- Java 1.8
 - [Apache Maven](https://maven.apache.org/)
 
 Clone the repository

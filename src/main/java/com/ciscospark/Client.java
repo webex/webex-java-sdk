@@ -12,6 +12,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
+import java.security.SecureRandom;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -86,7 +91,7 @@ class Client {
 
     void delete(URL url) {
         try {
-            HttpURLConnection connection = getConnection(url);
+            HttpsURLConnection connection = getConnection(url);
             connection.setRequestMethod("DELETE");
             int responseCode = connection.getResponseCode();
             checkForErrorResponse(connection, responseCode);
@@ -131,10 +136,10 @@ class Client {
         return request(url, method, body).inputStream;
     }
     static class Response {
-        HttpURLConnection connection;
+        HttpsURLConnection connection;
         InputStream inputStream;
 
-        public Response(HttpURLConnection connection, InputStream inputStream) {
+        public Response(HttpsURLConnection connection, InputStream inputStream) {
             this.connection = connection;
             this.inputStream = inputStream;
         }
@@ -200,7 +205,7 @@ class Client {
 
     private <T> Response doRequest(URL url, String method, T body) {
         try {
-            HttpURLConnection connection = getConnection(url);
+            HttpsURLConnection connection = getConnection(url);
             String trackingId = connection.getRequestProperty(TRACKING_ID);
             connection.setRequestMethod(method);
             if (logger != null && logger.isLoggable(Level.FINE)) {
@@ -255,7 +260,7 @@ class Client {
         return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
     }
 
-    private void checkForErrorResponse(HttpURLConnection connection, int responseCode) throws NotAuthenticatedException, IOException {
+    private void checkForErrorResponse(HttpsURLConnection connection, int responseCode) throws NotAuthenticatedException, IOException {
         if (responseCode == 401) {
             throw new NotAuthenticatedException();
         } else if (responseCode < 200 || responseCode >= 400) {
@@ -310,18 +315,25 @@ class Client {
         }
     }
 
-    private HttpURLConnection getConnection(URL url) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestProperty("Content-type", "application/json");
-        if (accessToken != null) {
-            String authorization = accessToken;
-            if (!authorization.startsWith("Bearer ")) {
-                authorization = "Bearer " + accessToken;
+    private HttpsURLConnection getConnection(URL url) throws IOException {
+        try {
+            SSLContext ssl = SSLContext.getInstance("TLSv1.2");
+            ssl.init(null, null, new SecureRandom());
+            HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+            connection.setSSLSocketFactory(ssl.getSocketFactory());
+            connection.setRequestProperty("Content-type", "application/json");
+            if (accessToken != null) {
+                String authorization = accessToken;
+                if (!authorization.startsWith("Bearer ")) {
+                    authorization = "Bearer " + accessToken;
+                }
+                connection.setRequestProperty("Authorization", authorization);
             }
-            connection.setRequestProperty("Authorization", authorization);
+            connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
+            return connection;
+        } catch (Exception ex) {
+            throw new IOException(ex.getMessage());
         }
-        connection.setRequestProperty(TRACKING_ID, UUID.randomUUID().toString());
-        return connection;
     }
 
 
@@ -526,7 +538,7 @@ class Client {
     private class PagingIterator<T> implements Iterator<T> {
         private final Class<T> clazz;
         private URL url;
-        private HttpURLConnection connection;
+        private HttpsURLConnection connection;
         private JsonParser parser;
         T current;
 
@@ -550,7 +562,7 @@ class Client {
 
                     JsonParser.Event event = parser.next();
                     if (event != JsonParser.Event.START_OBJECT) {
-                        HttpURLConnection next = getLink(connection, "next");
+                        HttpsURLConnection next = getLink(connection, "next");
                         if (next == null || (next.getURL().equals(url))) {
                             return false;
                         } else {
@@ -608,13 +620,13 @@ class Client {
 
     private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
 
-    private HttpURLConnection getLink(HttpURLConnection connection, String rel) throws IOException {
+    private HttpsURLConnection getLink(HttpsURLConnection connection, String rel) throws IOException {
         String link = connection.getHeaderField("Link");
         return parseLinkHeader(link, rel);
     }
 
-    private HttpURLConnection parseLinkHeader(String link, String desiredRel) throws IOException {
-        HttpURLConnection result = null;
+    private HttpsURLConnection parseLinkHeader(String link, String desiredRel) throws IOException {
+        HttpsURLConnection result = null;
         if (link != null && !"".equals(link)) {
             Matcher matcher = linkPattern.matcher(link);
             while (matcher.find()) {
