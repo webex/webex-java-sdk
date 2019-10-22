@@ -83,6 +83,35 @@ message.setRoomId(room.getId());
 message.setFiles(URI.create("http://example.com/hello_world.jpg"));
 spark.messages().post(message);
 
+// Share an adaptive card with the room
+message = new Message();
+message.setRoomId(room.getId());
+message.setText("Mandatory fallback text");
+JsonArray attachmentsArry = Json.createArrayBuilder() // Create an array to contain all the adaptive card JSONs
+                .add(Json.createObjectBuilder() // Add the required key "contentType" which points to the fact that this attachment is of type adatpive card
+                        .add("contentType", "application/vnd.microsoft.card.adaptive") // The content key will contain the actual card JSON generated from the adaptive cards designer
+                        .add("content", Json.createObjectBuilder()
+                                .add("$schema", "http://adaptivecards.io/schemas/adaptive-card.json")
+                                .add("type", "AdaptiveCard")
+                                .add("version", "1.0")
+                                .add("body", Json.createArrayBuilder() // Create the initital body object of the card
+                                        .add(Json.createObjectBuilder() // Create an object/element inside the body
+                                                .add("type", "TextBlock") // This is an example of TextBlock element
+                                                .add("text", "Here is a ninja cat")
+                                                .build() // Build the object
+                                        )
+                                        .add(Json.createObjectBuilder()
+                                                .add("type", "Image") // This is an example of Image element
+                                                .add("url", "http://adaptivecards.io/content/cats/1.png")
+                                                .build() // Build the image element
+                                        )
+                                        .build() // Build the body object
+                                )
+                                .build() // Build the card JSON
+                        ))
+                .build(); // Build the entire attachments array
+message.setAttachments(attachmentsArry); // Set the attachments field on the message payload which has to be an array of JSON
+spark.messages().post(message);
 
 // Get person details
 Person person=new Person();
