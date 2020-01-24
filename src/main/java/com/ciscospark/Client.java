@@ -85,6 +85,15 @@ class Client {
         return new PagingIterator<T>(clazz, url);
     }
 
+    <T> T head(Class<T> clazz, String path, List<String[]> params){
+        return readHeaders(clazz, requestHeaders("HEAD", path, params, null));
+    }
+
+    <T> T head(Class<T> clazz, URL url){
+        return readHeaders(clazz, request(url, "HEAD", null).connection.getHeaderFields());
+    }
+
+
     void delete(String path) {
         delete(getUrl(path, null));
     }
@@ -135,6 +144,13 @@ class Client {
         URL url = getUrl(path, params);
         return request(url, method, body).inputStream;
     }
+
+    <T> Map<String, List<String>>  requestHeaders(String method, String path, List<String[]> params, T body) {
+        URL url = getUrl(path, params);
+        return request(url, method, body).connection.getHeaderFields();
+    }
+
+
 
     static class Response {
         HttpsURLConnection connection;
@@ -353,6 +369,24 @@ class Client {
             throw new IOException(ex.getMessage());
         }
     }
+
+
+    private static <T> T readHeaders(Class<T> clazz, Map<String, List<String>> headerFields){
+        try{
+            T result = clazz.newInstance();
+            for (Field field : clazz.getDeclaredFields()){
+                Object fieldObject = field.get(result);
+                if (fieldObject instanceof HeaderField &&
+                        headerFields.containsKey(((HeaderField) fieldObject).getHeaderName())){
+                    ((HeaderField) fieldObject).setHeaderValue(headerFields.get(((HeaderField) fieldObject).getHeaderName()));
+                }
+            }
+            return result;
+        } catch (Exception ex) {
+            throw new SparkException(ex);
+        }
+    }
+
 
 
     private static <T> T readJson(Class<T> clazz, InputStream inputStream) {
