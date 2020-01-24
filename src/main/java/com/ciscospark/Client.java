@@ -375,6 +375,7 @@ class Client {
         try{
             T result = clazz.newInstance();
             for (Field field : clazz.getDeclaredFields()){
+                field.setAccessible(true);
                 Object fieldObject = field.get(result);
                 if (fieldObject instanceof HeaderField &&
                         headerFields.containsKey(((HeaderField) fieldObject).getHeaderName())){
