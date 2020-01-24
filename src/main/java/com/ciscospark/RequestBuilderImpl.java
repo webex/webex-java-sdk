@@ -80,6 +80,15 @@ class RequestBuilderImpl<T> implements RequestBuilder<T> {
     }
 
     @Override
+    public T head() {
+        if (url != null) {
+            return client.head(clazz, url);
+        } else {
+            return client.head(clazz, pathBuilder.toString(), params);
+        }
+    }
+
+    @Override
     public Iterator<T> iterate() {
         if (url != null) {
             return client.list(clazz, url);

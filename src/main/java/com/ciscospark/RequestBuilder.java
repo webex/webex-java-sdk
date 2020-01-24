@@ -15,6 +15,9 @@ public interface RequestBuilder<T> {
     T post(T body);
     T put(T body);
     T get();
+
+    T head();
+
     Iterator<T> iterate();
     LinkedResponse<List<T>> paginate();
     void delete();
