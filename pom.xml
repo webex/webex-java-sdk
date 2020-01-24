@@ -9,7 +9,7 @@
 
     <groupId>com.ciscospark</groupId>
     <artifactId>ciscospark-client</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2</version>
 
     <build>
         <plugins>
