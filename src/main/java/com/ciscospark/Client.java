@@ -432,8 +432,10 @@ class Client {
                         
                         if (null != field) {
                             if (null != list) {
+                                if (null != field.getType().getComponentType()) {
                                 // we are in a list - we likely have a s at the end, which we should drop
                                 list.add(readObject(field.getType().getComponentType(), parser));
+                                }
                             } else {
                                 // in case of PhoneNumber this would return a PhoneNumber object
                                 field.set(result, readObject(field.getType(), parser));
