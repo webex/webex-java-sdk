@@ -1,5 +1,7 @@
 package com.ciscospark;
 
+import java.io.File;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -106,12 +108,31 @@ class RequestBuilderImpl<T> implements RequestBuilder<T> {
         }
     }
 
+
     @Override
     public void delete() {
         if (url != null) {
             client.delete(url);
         } else {
             client.delete(pathBuilder.toString());
+        }
+    }
+
+    @Override
+    public File getFile() {
+        if (this.url != null) {
+            return this.client.getFile(this.url);
+        } else {
+            try {
+                String path = this.pathBuilder.toString();
+                if (path.startsWith("/")) {
+                    path = path.substring(path.indexOf("http"));
+                }
+
+                return this.client.getFile(new URL(path));
+            } catch (MalformedURLException var2) {
+                return null;
+            }
         }
     }
 }

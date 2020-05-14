@@ -12,6 +12,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -691,5 +693,71 @@ class Client {
             }
         }
         return result;
+    }
+
+    public File getFile(URL url) {
+        File file = this.doRequest4File(url);
+        return file;
+    }
+
+    private File doRequest4File(URL url) {
+        try {
+            HttpURLConnection connection = this.getConnection(url);
+            String trackingId = connection.getRequestProperty("TrackingID");
+            connection.setRequestMethod("GET");
+            if (this.logger != null && this.logger.isLoggable(Level.FINE)) {
+                this.logger.log(Level.FINE, "Request {0}: {1} {2}", new Object[]{trackingId, "GET", connection.getURL().toString()});
+            }
+
+            int responseCode = connection.getResponseCode();
+            if (this.logger != null && this.logger.isLoggable(Level.FINE)) {
+                this.logger.log(Level.FINE, "Response {0}: {1} {2}", new Object[]{trackingId, responseCode, connection.getResponseMessage()});
+            }
+
+            if (responseCode != 200) {
+                this.logger.info("No file to download. Server replied HTTP code: " + responseCode);
+                connection.disconnect();
+                return null;
+            } else {
+                String fileName = "";
+                String disposition = connection.getHeaderField("Content-Disposition");
+                String contentType = connection.getContentType();
+                int contentLength = connection.getContentLength();
+                if (disposition != null) {
+                    int index = disposition.indexOf("filename=");
+                    if (index > 0) {
+                        fileName = disposition.substring(index + 10, disposition.length() - 1);
+                    }
+                } else {
+                    String fileURL = url.toString();
+                    fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+                }
+
+                if (this.logger != null && this.logger.isLoggable(Level.FINE)) {
+                    this.logger.info("Content-Type = " + contentType);
+                    this.logger.info("Content-Disposition = " + disposition);
+                    this.logger.info("Content-Length = " + contentLength);
+                    this.logger.info("fileName = " + fileName);
+                }
+
+                InputStream inputStream = connection.getInputStream();
+                String tempDirectory = System.getProperty("java.io.tmpdir");
+                Path saveFilePath = Paths.get(tempDirectory, fileName);
+                File file = saveFilePath.toFile();
+                FileOutputStream outputStream = new FileOutputStream(file);
+                byte[] buffer = new byte[512];
+
+                int bytesRead;
+                while((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+
+                outputStream.close();
+                inputStream.close();
+                return file;
+            }
+        } catch (IOException var16) {
+            throw new SparkException("io error", var16);
+        }
     }
 }
