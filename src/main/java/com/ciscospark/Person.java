@@ -25,6 +25,7 @@ public class Person {
     private Date lastModified;
     private String nickName;
     private Boolean invitePending;
+    private SipAddress[] sipAddresses;
 
 
     public String getId() {
@@ -177,5 +178,13 @@ public class Person {
 
     public void setInvitePending(Boolean invitePending) {
         this.invitePending = invitePending;
+    }
+
+    public void setSipAddresses(SipAddress[] sipAddresses){
+        this.sipAddresses = sipAddresses;
+    }
+
+    public SipAddress[] getSipAddresses() {
+        return sipAddresses;
     }
 }
