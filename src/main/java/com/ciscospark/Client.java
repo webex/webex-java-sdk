@@ -290,7 +290,7 @@ class Client {
                 errorMessageBuilder.append(errorMessage.message);
             }
 
-            throw new SparkException(errorMessageBuilder.toString());
+            throw new SparkException(errorMessageBuilder.toString(), responseCode);
         }
     }
 
