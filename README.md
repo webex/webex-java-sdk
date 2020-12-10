@@ -8,9 +8,9 @@
 
 ## Introduction
 
-This Java SDK is a Java library for consuming Cisco Webex Team's RESTful APIs. Please visit us at https://developer.webex.com/ for more information about Cisco Webex for Developers.
+This Java SDK is a Java library for consuming Cisco Webex's RESTful APIs. Please visit us at https://developer.webex.com/ for more information about Cisco Webex for Developers.
 
-_Why spark-java-sdk?_ : A rebranding took place in 2018, some time after this SDK was created, that renamed Cisco Spark to Cisco Webex Teams.
+_Why spark-java-sdk?_ : A rebranding took place in 2018, some time after this SDK was created, that renamed Cisco Spark to Cisco Webex.
 
 ## Prerequisites
 
