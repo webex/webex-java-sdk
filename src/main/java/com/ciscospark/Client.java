@@ -12,6 +12,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.net.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -85,6 +87,15 @@ class Client {
         return new PagingIterator<T>(clazz, url);
     }
 
+    <T> T head(Class<T> clazz, String path, List<String[]> params){
+        return readHeaders(clazz, requestHeaders("HEAD", path, params, null));
+    }
+
+    <T> T head(Class<T> clazz, URL url){
+        return readHeaders(clazz, request(url, "HEAD", null).connection.getHeaderFields());
+    }
+
+
     void delete(String path) {
         delete(getUrl(path, null));
     }
@@ -135,6 +146,14 @@ class Client {
         URL url = getUrl(path, params);
         return request(url, method, body).inputStream;
     }
+
+    <T> Map<String, List<String>>  requestHeaders(String method, String path, List<String[]> params, T body) {
+        URL url = getUrl(path, params);
+        return request(url, method, body).connection.getHeaderFields();
+    }
+
+
+
     static class Response {
         HttpsURLConnection connection;
         InputStream inputStream;
@@ -167,7 +186,7 @@ class Client {
         if (clientId != null && clientSecret != null) {
             if (authCode != null && redirectUri != null) {
                 log(Level.FINE, "Requesting access token");
-                URL url = getUrl("/access_token",null);
+                URL url = getUrl("/access_token", null);
                 AccessTokenRequest body = new AccessTokenRequest();
                 body.setGrant_type("authorization_code");
                 body.setClient_id(clientId);
@@ -182,7 +201,7 @@ class Client {
                 return true;
             } else if (refreshToken != null) {
                 log(Level.FINE, "Refreshing access token");
-                URL url = getUrl("/access_token",null);
+                URL url = getUrl("/access_token", null);
                 AccessTokenRequest body = new AccessTokenRequest();
                 body.setClient_id(clientId);
                 body.setClient_secret(clientSecret);
@@ -202,15 +221,18 @@ class Client {
             logger.log(level, msg, args);
         }
     }
-
     private <T> Response doRequest(URL url, String method, T body) {
+        return doRequest(url, method, body, 0);
+    }
+
+    private <T> Response doRequest(URL url, String method, T body, int retryNumber) {
         try {
             HttpsURLConnection connection = getConnection(url);
             String trackingId = connection.getRequestProperty(TRACKING_ID);
             connection.setRequestMethod(method);
             if (logger != null && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Request {0}: {1} {2}",
-                        new Object[] { trackingId, method, connection.getURL().toString() });
+                        new Object[]{trackingId, method, connection.getURL().toString()});
             }
             if (body != null) {
                 connection.setDoOutput(true);
@@ -218,7 +240,7 @@ class Client {
                     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                     writeJson(body, byteArrayOutputStream);
                     logger.log(Level.FINEST, "Request Body {0}: {1}",
-                            new Object[] { trackingId, byteArrayOutputStream.toString() });
+                            new Object[]{trackingId, byteArrayOutputStream.toString()});
                     byteArrayOutputStream.writeTo(connection.getOutputStream());
                 } else {
                     writeJson(body, connection.getOutputStream());
@@ -228,9 +250,23 @@ class Client {
             int responseCode = connection.getResponseCode();
             if (logger != null && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Response {0}: {1} {2}",
-                        new Object[] { trackingId, responseCode, connection.getResponseMessage() });
+                        new Object[]{trackingId, responseCode, connection.getResponseMessage()});
             }
-            checkForErrorResponse(connection, responseCode);
+            if (responseCode == 429) {
+                if(retryNumber>5)
+                    throw new RuntimeException("Too many retry after HTTP response 429");
+
+                // retry based of Retry-After response header
+                final String retryAfter = connection.getHeaderField("Retry-After");
+                try {
+                    Thread.sleep(Long.parseLong(retryAfter));
+                    return doRequest(url, method, body, retryNumber+1);
+                } catch (InterruptedException e) {
+                    log(Level.SEVERE, e.getMessage());
+                }
+            } else {
+                checkForErrorResponse(connection, responseCode);
+            }
 
             if (logger != null && logger.isLoggable(Level.FINEST)) {
                 InputStream inputStream = logResponse(trackingId, connection.getInputStream());
@@ -337,6 +373,25 @@ class Client {
     }
 
 
+    private static <T> T readHeaders(Class<T> clazz, Map<String, List<String>> headerFields){
+        try{
+            T result = clazz.newInstance();
+            for (Field field : clazz.getDeclaredFields()){
+                field.setAccessible(true);
+                Object fieldObject = field.get(result);
+                if (fieldObject instanceof HeaderField &&
+                        headerFields.containsKey(((HeaderField) fieldObject).getHeaderName())){
+                    ((HeaderField) fieldObject).setHeaderValue(headerFields.get(((HeaderField) fieldObject).getHeaderName()));
+                }
+            }
+            return result;
+        } catch (Exception ex) {
+            throw new SparkException(ex);
+        }
+    }
+
+
+
     private static <T> T readJson(Class<T> clazz, InputStream inputStream) {
         JsonParser parser = Json.createParser(inputStream);
         parser.next();
@@ -349,7 +404,8 @@ class Client {
             List<Object> list = null;
             Field field = null;
             String key = "";
-            PARSER_LOOP: while (parser.hasNext()) {
+            PARSER_LOOP:
+            while (parser.hasNext()) {
                 JsonParser.Event event = parser.next();
                 switch (event) {
                     case KEY_NAME:
@@ -413,7 +469,7 @@ class Client {
                                     Object next = iterator.next();
                                     iterator.set(URI.create(next.toString()));
                                 }
-                            } else if (field.getType().getComponentType() != null /* this is an array class */ ) {
+                            } else if (field.getType().getComponentType() != null /* this is an array class */) {
                                 itemClazz = field.getType().getComponentType(); // this would also cover the String array we had previously
                             } else {
                                 throw new SparkException("bad field class: " + field.getType());
@@ -429,7 +485,7 @@ class Client {
 
                         // the field type points us in the direction of the class to instantiate
 
-                        
+
                         if (null != field) {
                             if (null != list) {
                                 if (null != field.getType().getComponentType()) {
@@ -602,12 +658,11 @@ class Client {
     }
 
 
-
     private void scrollToItemsArray(JsonParser parser) {
         JsonParser.Event event;
         while (parser.hasNext()) {
             event = parser.next();
-            if (event == JsonParser.Event.KEY_NAME &&  parser.getString().equals("items")) {
+            if (event == JsonParser.Event.KEY_NAME && parser.getString().equals("items")) {
                 break;
             }
         }
@@ -617,7 +672,6 @@ class Client {
             throw new SparkException("bad json");
         }
     }
-
 
 
     private static final Pattern linkPattern = Pattern.compile("\\s*<(\\S+)>\\s*;\\s*rel=\"(\\S+)\",?");
@@ -641,5 +695,71 @@ class Client {
             }
         }
         return result;
+    }
+
+    public File getFile(URL url) {
+        File file = this.doRequest4File(url);
+        return file;
+    }
+
+    private File doRequest4File(URL url) {
+        try {
+            HttpURLConnection connection = this.getConnection(url);
+            String trackingId = connection.getRequestProperty("TrackingID");
+            connection.setRequestMethod("GET");
+            if (this.logger != null && this.logger.isLoggable(Level.FINE)) {
+                this.logger.log(Level.FINE, "Request {0}: {1} {2}", new Object[]{trackingId, "GET", connection.getURL().toString()});
+            }
+
+            int responseCode = connection.getResponseCode();
+            if (this.logger != null && this.logger.isLoggable(Level.FINE)) {
+                this.logger.log(Level.FINE, "Response {0}: {1} {2}", new Object[]{trackingId, responseCode, connection.getResponseMessage()});
+            }
+
+            if (responseCode != 200) {
+                this.logger.info("No file to download. Server replied HTTP code: " + responseCode);
+                connection.disconnect();
+                return null;
+            } else {
+                String fileName = "";
+                String disposition = connection.getHeaderField("Content-Disposition");
+                String contentType = connection.getContentType();
+                int contentLength = connection.getContentLength();
+                if (disposition != null) {
+                    int index = disposition.indexOf("filename=");
+                    if (index > 0) {
+                        fileName = disposition.substring(index + 10, disposition.length() - 1);
+                    }
+                } else {
+                    String fileURL = url.toString();
+                    fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+                }
+
+                if (this.logger != null && this.logger.isLoggable(Level.FINE)) {
+                    this.logger.info("Content-Type = " + contentType);
+                    this.logger.info("Content-Disposition = " + disposition);
+                    this.logger.info("Content-Length = " + contentLength);
+                    this.logger.info("fileName = " + fileName);
+                }
+
+                InputStream inputStream = connection.getInputStream();
+                String tempDirectory = System.getProperty("java.io.tmpdir");
+                Path saveFilePath = Paths.get(tempDirectory, fileName);
+                File file = saveFilePath.toFile();
+                FileOutputStream outputStream = new FileOutputStream(file);
+                byte[] buffer = new byte[512];
+
+                int bytesRead;
+                while((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+
+                outputStream.close();
+                inputStream.close();
+                return file;
+            }
+        } catch (IOException var16) {
+            throw new SparkException("io error", var16);
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.ciscospark;
 
+import java.io.File;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.List;
@@ -15,7 +16,12 @@ public interface RequestBuilder<T> {
     T post(T body);
     T put(T body);
     T get();
+
+    T head();
+
     Iterator<T> iterate();
     LinkedResponse<List<T>> paginate();
     void delete();
+
+    File getFile();
 }
