@@ -205,35 +205,52 @@ class Client {
 
     private <T> Response doRequest(URL url, String method, T body) {
         try {
+            
             HttpsURLConnection connection = getConnection(url);
-            String trackingId = connection.getRequestProperty(TRACKING_ID);
+            String requestTrackingId = connection.getRequestProperty(TRACKING_ID);
             connection.setRequestMethod(method);
-            if (logger != null && logger.isLoggable(Level.FINE)) {
-                logger.log(Level.FINE, "Request {0}: {1} {2}",
-                        new Object[] { trackingId, method, connection.getURL().toString() });
-            }
-            if (body != null) {
-                connection.setDoOutput(true);
-                if (logger != null && logger.isLoggable(Level.FINEST)) {
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                    writeJson(body, byteArrayOutputStream);
-                    logger.log(Level.FINEST, "Request Body {0}: {1}",
-                            new Object[] { trackingId, byteArrayOutputStream.toString() });
-                    byteArrayOutputStream.writeTo(connection.getOutputStream());
-                } else {
-                    writeJson(body, connection.getOutputStream());
+            try {
+                if (logger != null && logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE, "Request {0}: {1} {2}",
+                            new Object[] { requestTrackingId, method, connection.getURL().toString() });
                 }
+                if (body != null) {
+                    connection.setDoOutput(true);
+                    if (logger != null && logger.isLoggable(Level.FINEST)) {
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                        writeJson(body, byteArrayOutputStream);
+                        logger.log(Level.FINEST, "Request Body {0}: {1}",
+                                new Object[] { requestTrackingId, byteArrayOutputStream.toString() });
+                        byteArrayOutputStream.writeTo(connection.getOutputStream());
+                    } else {
+                        writeJson(body, connection.getOutputStream());
+                    }
+                }
+            } catch (Exception ex) {
+                String responseTrackingId = connection.getHeaderField("TrackingId");
+                if (logger != null && logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE, "Response Tracking Id: " + responseTrackingId);
+                }
+                throw ex;
             }
 
+            // A note about HttpsURLConnection connections: 
+            // You cannot read from the response of a connection before you write into the connection.
+            // This is because, when you read (i.e. @code getHeaderField) it inherently calls @code getInputStream
+            // which opens a connection, thus, throwing an exception on @code setDoOutput (write) because it 
+            // makes sure a connection hasn't been opened. And ultimately, you can only read from the 
+            // response if a connection is already in place. Hence, the order of operations is imporant
+            // when working with HttpsURLConnections. 
+            String responseTrackingId = connection.getHeaderField("TrackingId");
             int responseCode = connection.getResponseCode();
             if (logger != null && logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "Response {0}: {1} {2}",
-                        new Object[] { trackingId, responseCode, connection.getResponseMessage() });
+                        new Object[] { responseTrackingId, responseCode, connection.getResponseMessage() });
             }
             checkForErrorResponse(connection, responseCode);
 
             if (logger != null && logger.isLoggable(Level.FINEST)) {
-                InputStream inputStream = logResponse(trackingId, connection.getInputStream());
+                InputStream inputStream = logResponse(responseTrackingId, connection.getInputStream());
                 return new Response(connection, inputStream);
             } else {
                 InputStream inputStream = connection.getInputStream();
